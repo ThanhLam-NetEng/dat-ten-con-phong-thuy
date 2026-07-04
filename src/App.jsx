@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { layNamAmLich } from "./logic/utils";
 import { layGoiYTen, layGoiYNgaySinh, chamDiemTenCoSan, tinhDiemChoTenDaChon } from "./logic/phongThuy";
 
@@ -49,7 +49,46 @@ export default function App() {
   const [middleName, setMiddleName] = useState("");
 
   // Trạng thái tab hiện tại: suggest (Đặt tên con), csection (Chọn ngày sinh mổ), check (Chấm điểm tên)
-  const [activeTab, setActiveTab] = useState("suggest");
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== "undefined") {
+      const path = window.location.pathname;
+      if (path.includes("xem-ngay-sinh-mo")) return "csection";
+      if (path.includes("cham-diem-ten")) return "check";
+    }
+    return "suggest";
+  });
+
+  const changeTab = (tabName) => {
+    setActiveTab(tabName);
+    setExpandedIdx(null);
+    if (typeof window !== "undefined") {
+      if (tabName === "suggest") {
+        window.history.pushState({}, "", "/");
+        document.title = "Đặt Tên Con Hợp Mệnh Bố Mẹ 2026 - Xem Tên Phong Thủy Chuẩn Xác";
+      } else if (tabName === "csection") {
+        window.history.pushState({}, "", "/xem-ngay-sinh-mo");
+        document.title = "Chọn Ngày Sinh Mổ Đẹp 2026 - Xem Ngày Mổ Chủ Động Theo Tuổi Bố Mẹ";
+      } else if (tabName === "check") {
+        window.history.pushState({}, "", "/cham-diem-ten");
+        document.title = "Chấm Điểm Tên Con Theo Phong Thủy 2026 - Xem Cát Hung Tên Của Bé";
+      }
+    }
+  };
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname;
+      if (path.includes("xem-ngay-sinh-mo")) {
+        setActiveTab("csection");
+      } else if (path.includes("cham-diem-ten")) {
+        setActiveTab("check");
+      } else {
+        setActiveTab("suggest");
+      }
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
   // Trạng thái chọn ngày sinh mổ
   const [csectStart, setCsectStart] = useState("2026-07-01");
@@ -239,7 +278,7 @@ export default function App() {
     setBabyMonth(m);
     setBabyYearSelect(y);
     setGender(genderVal);
-    setActiveTab("suggest");
+    changeTab("suggest");
 
     // Tự động chạy tính toán gợi ý tên
     const fatherDob = getDobString(fatherDay, fatherMonth, fatherYear);
@@ -372,9 +411,12 @@ export default function App() {
 
         {/* Tab Navigation */}
         <div className="flex border-b border-slate-200 pb-2 mb-6 gap-2 sm:gap-6 flex-wrap">
-          <button
-            type="button"
-            onClick={() => setActiveTab("suggest")}
+          <a
+            href="/"
+            onClick={(e) => {
+              e.preventDefault();
+              changeTab("suggest");
+            }}
             className={`pb-2.5 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer ${
               activeTab === "suggest"
                 ? "border-amber-600 text-amber-800"
@@ -382,10 +424,13 @@ export default function App() {
             }`}
           >
             👶 Đặt Tên Con Hợp Mệnh
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("csection")}
+          </a>
+          <a
+            href="/xem-ngay-sinh-mo"
+            onClick={(e) => {
+              e.preventDefault();
+              changeTab("csection");
+            }}
             className={`pb-2.5 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer ${
               activeTab === "csection"
                 ? "border-amber-600 text-amber-800"
@@ -393,10 +438,13 @@ export default function App() {
             }`}
           >
             📅 Chọn Ngày Sinh Mổ
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("check")}
+          </a>
+          <a
+            href="/cham-diem-ten"
+            onClick={(e) => {
+              e.preventDefault();
+              changeTab("check");
+            }}
             className={`pb-2.5 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer ${
               activeTab === "check"
                 ? "border-amber-600 text-amber-800"
@@ -404,7 +452,7 @@ export default function App() {
             }`}
           >
             ✍️ Chấm Điểm Tên Có Sẵn
-          </button>
+          </a>
         </div>
 
         {/* Tab 1: Đặt Tên Con Hợp Mệnh */}
