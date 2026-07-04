@@ -60,3 +60,22 @@ body {
   border: 1px solid rgba(241, 245, 249, 1);
   box-shadow: 0 4px 6px -1px rgba(148, 163, 184, 0.05), 0 2px 4px -2px rgba(148, 163, 184, 0.05);
 }
+
+/* Ẩn thanh cuộn ngang ở Tab Navigation */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Animation fade in */
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+

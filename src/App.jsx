@@ -45,6 +45,29 @@ export default function App() {
   const [visibleCount, setVisibleCount] = useState(15);
   const [copiedText, setCopiedText] = useState("");
   const [expandedIdx, setExpandedIdx] = useState(null);
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [showInstallBtn, setShowInstallBtn] = useState(false);
+
+  useEffect(() => {
+    const handler = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setShowInstallBtn(true);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  const handleInstallApp = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === "accepted") {
+      console.log("User accepted the install prompt");
+    }
+    setDeferredPrompt(null);
+    setShowInstallBtn(false);
+  };
 
   // Họ và tên đệm dự kiến của bé
   const [surname, setSurname] = useState("");
@@ -439,6 +462,35 @@ export default function App() {
         </p>
       </div>
 
+      {/* PWA Installation Banner */}
+      {showInstallBtn && (
+        <div className="mb-6 p-4 bg-gradient-to-r from-amber-500 to-amber-600 rounded-2xl text-white shadow-md flex flex-col sm:flex-row items-center justify-between gap-4 animate-fade-in">
+          <div className="flex items-center gap-3 text-left">
+            <div className="w-12 h-12 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-2xl shadow-inner">
+              🔮
+            </div>
+            <div>
+              <h4 className="font-bold text-sm sm:text-base">Tải Ứng Dụng Phong Thủy Gia Đình</h4>
+              <p className="text-xs text-amber-100">Cài đặt trực tiếp lên điện thoại của bạn để truy cập nhanh chóng, mượt mà hơn.</p>
+            </div>
+          </div>
+          <div className="flex gap-2 w-full sm:w-auto justify-end">
+            <button
+              onClick={() => setShowInstallBtn(false)}
+              className="px-3 py-1.5 rounded-xl border border-white/20 text-xs font-semibold hover:bg-white/10 transition-all cursor-pointer"
+            >
+              Để sau
+            </button>
+            <button
+              onClick={handleInstallApp}
+              className="px-4 py-1.5 bg-white text-amber-900 rounded-xl text-xs font-bold hover:bg-amber-50 shadow-sm transition-all whitespace-nowrap cursor-pointer"
+            >
+              Cài đặt ngay
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Main Container */}
       <div className="glass rounded-3xl p-6 md:p-8 shadow-xl border border-slate-200/80 mb-8">
         
@@ -526,91 +578,33 @@ export default function App() {
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-slate-200 pb-2 mb-6 gap-2 sm:gap-6 flex-wrap">
-          <a
-            href="/"
-            onClick={(e) => {
-              e.preventDefault();
-              changeTab("suggest");
-            }}
-            className={`pb-2.5 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer ${
-              activeTab === "suggest"
-                ? "border-amber-600 text-amber-800"
-                : "border-transparent text-slate-500 hover:text-slate-700"
-            }`}
-          >
-            👶 Đặt Tên Con Hợp Mệnh
-          </a>
-          <a
-            href="/xem-ngay-sinh-mo"
-            onClick={(e) => {
-              e.preventDefault();
-              changeTab("csection");
-            }}
-            className={`pb-2.5 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer ${
-              activeTab === "csection"
-                ? "border-amber-600 text-amber-800"
-                : "border-transparent text-slate-500 hover:text-slate-700"
-            }`}
-          >
-            📅 Chọn Ngày Sinh Mổ
-          </a>
-          <a
-            href="/cham-diem-ten"
-            onClick={(e) => {
-              e.preventDefault();
-              changeTab("check");
-            }}
-            className={`pb-2.5 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer ${
-              activeTab === "check"
-                ? "border-amber-600 text-amber-800"
-                : "border-transparent text-slate-500 hover:text-slate-700"
-            }`}
-          >
-            ✍️ Chấm Điểm Tên Có Sẵn
-          </a>
-          <a
-            href="/xem-tuoi-vo-chong"
-            onClick={(e) => {
-              e.preventDefault();
-              changeTab("couple");
-            }}
-            className={`pb-2.5 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer ${
-              activeTab === "couple"
-                ? "border-amber-600 text-amber-800"
-                : "border-transparent text-slate-500 hover:text-slate-700"
-            }`}
-          >
-            👩‍❤️‍👨 Xem Tuổi Vợ Chồng
-          </a>
-          <a
-            href="/xem-ngay-tot-xau"
-            onClick={(e) => {
-              e.preventDefault();
-              changeTab("dates");
-            }}
-            className={`pb-2.5 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer ${
-              activeTab === "dates"
-                ? "border-amber-600 text-amber-800"
-                : "border-transparent text-slate-500 hover:text-slate-700"
-            }`}
-          >
-            📅 Xem Ngày Tốt Xấu
-          </a>
-          <a
-            href="/doi-am-duong-lich"
-            onClick={(e) => {
-              e.preventDefault();
-              changeTab("lunar_conv");
-            }}
-            className={`pb-2.5 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer ${
-              activeTab === "lunar_conv"
-                ? "border-amber-600 text-amber-800"
-                : "border-transparent text-slate-500 hover:text-slate-700"
-            }`}
-          >
-            ☯️ Đổi Lịch Âm Dương
-          </a>
+        <div className="overflow-x-auto -mx-2 px-2 pb-2 mb-6 border-b border-slate-200 scrollbar-hide">
+          <div className="flex gap-1 min-w-max">
+            {[
+              { id: "suggest", href: "/", icon: "👶", label: "Đặt Tên Con" },
+              { id: "csection", href: "/xem-ngay-sinh-mo", icon: "🩺", label: "Ngày Sinh Mổ" },
+              { id: "check", href: "/cham-diem-ten", icon: "✍️", label: "Chấm Điểm Tên" },
+              { id: "couple", href: "/xem-tuoi-vo-chong", icon: "💑", label: "Tuổi Vợ Chồng" },
+              { id: "dates", href: "/xem-ngay-tot-xau", icon: "📅", label: "Ngày Tốt Xấu" },
+              { id: "lunar_conv", href: "/doi-am-duong-lich", icon: "☯️", label: "Đổi Lịch" },
+            ].map((tab) => (
+              <a
+                key={tab.id}
+                href={tab.href}
+                onClick={(e) => {
+                  e.preventDefault();
+                  changeTab(tab.id);
+                }}
+                className={`whitespace-nowrap px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
+                  activeTab === tab.id
+                    ? "bg-amber-600 text-white border-amber-600 shadow-sm"
+                    : "bg-white text-slate-600 border-slate-200 hover:bg-amber-50 hover:border-amber-300 hover:text-amber-800"
+                }`}
+              >
+                {tab.icon} {tab.label}
+              </a>
+            ))}
+          </div>
         </div>
 
         {/* Tab 1: Đặt Tên Con Hợp Mệnh */}
@@ -1852,6 +1846,13 @@ export default function App() {
           </div>
         </div>
       )}
+      {/* PWA bottom tip */}
+      <div className="mt-8 text-center text-xs text-slate-400/90 space-y-2">
+        <p className="flex items-center justify-center gap-1.5 flex-wrap px-4 leading-relaxed max-w-2xl mx-auto">
+          <span>💡 Mẹo: Cài đặt công cụ này làm ứng dụng trên điện thoại (PWA) để mở nhanh từ màn hình chính.</span>
+          <span className="block text-[11px] text-slate-400">Android/Chrome: bấm banner cài đặt hoặc Chọn cài đặt từ Menu trình duyệt. iOS/Safari: bấm nút Chia sẻ 📤 rồi chọn "Thêm vào MH chính".</span>
+        </p>
+      </div>
     </div>
   );
 }
