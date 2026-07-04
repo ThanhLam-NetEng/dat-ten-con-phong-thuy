@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://tenconphongthuy.pages.dev/sitemap.xml
+Sitemap: https://dat-ten-con-phong-thuy.pages.dev/sitemap.xml
