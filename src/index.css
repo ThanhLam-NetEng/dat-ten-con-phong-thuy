@@ -1,0 +1,62 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+
+@import "tailwindcss";
+
+:root {
+  font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #f8f6f0; /* Tông màu kem sáng ấm áp, thân thiện */
+  color: #334155; /* Chữ màu Slate sẫm dễ đọc */
+  min-height: 100vh;
+}
+
+/* Các tùy chỉnh màu sắc theo ngũ hành dùng làm điểm nhấn ở Light Theme */
+.hanh-kim {
+  --color-hanh: #b45309; /* Vàng đậm */
+  --bg-hanh: #fef3c7;
+  --border-hanh: #fde68a;
+}
+
+.hanh-moc {
+  --color-hanh: #15803d; /* Xanh lục */
+  --bg-hanh: #dcfce7;
+  --border-hanh: #bbf7d0;
+}
+
+.hanh-thuy {
+  --color-hanh: #1d4ed8; /* Xanh lam */
+  --bg-hanh: #dbeafe;
+  --border-hanh: #bfdbfe;
+}
+
+.hanh-hoa {
+  --color-hanh: #be123c; /* Đỏ hồng */
+  --bg-hanh: #ffe4e6;
+  --border-hanh: #fecdd3;
+}
+
+.hanh-tho {
+  --color-hanh: #6b21a8; /* Tím */
+  --bg-hanh: #f3e8ff;
+  --border-hanh: #e9d5ff;
+}
+
+/* Glassmorphism cho Light Theme */
+.glass {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 10px 30px -10px rgba(148, 163, 184, 0.12), 0 1px 3px rgba(148, 163, 184, 0.05);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(241, 245, 249, 1);
+  box-shadow: 0 4px 6px -1px rgba(148, 163, 184, 0.05), 0 2px 4px -2px rgba(148, 163, 184, 0.05);
+}

@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://tenconphongthuy.pages.dev/sitemap.xml
