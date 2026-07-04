@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { layNamAmLich } from "./logic/utils";
-import { layGoiYTen, layGoiYNgaySinh, chamDiemTenCoSan, tinhDiemChoTenDaChon } from "./logic/phongThuy";
+import { layGoiYTen, layGoiYNgaySinh, chamDiemTenCoSan, tinhDiemChoTenDaChon, tinhTuoiVoChong, tinhNgayTotXau } from "./logic/phongThuy";
+import { SolarDate, LunarDate } from "lunar-date-vn";
+import { canChiNapAmList } from "./data/canChiNapAm";
 
 // Icon và màu sắc đại diện cho các hành ngũ hành (Light Theme tương thích)
 const elementIcons = {
@@ -48,12 +50,15 @@ export default function App() {
   const [surname, setSurname] = useState("");
   const [middleName, setMiddleName] = useState("");
 
-  // Trạng thái tab hiện tại: suggest (Đặt tên con), csection (Chọn ngày sinh mổ), check (Chấm điểm tên)
+  // Trạng thái tab hiện tại: suggest (Đặt tên con), csection (Chọn ngày sinh mổ), check (Chấm điểm tên), couple (Xem tuổi vợ chồng), dates (Xem ngày tốt xấu), lunar_conv (Đổi lịch âm dương)
   const [activeTab, setActiveTab] = useState(() => {
     if (typeof window !== "undefined") {
       const path = window.location.pathname;
       if (path.includes("xem-ngay-sinh-mo")) return "csection";
       if (path.includes("cham-diem-ten")) return "check";
+      if (path.includes("doi-am-duong-lich")) return "lunar_conv";
+      if (path.includes("xem-tuoi-vo-chong")) return "couple";
+      if (path.includes("xem-ngay-tot-xau")) return "dates";
     }
     return "suggest";
   });
@@ -71,6 +76,15 @@ export default function App() {
       } else if (tabName === "check") {
         window.history.pushState({}, "", "/cham-diem-ten");
         document.title = "Chấm Điểm Tên Con Theo Phong Thủy 2026 - Xem Cát Hung Tên Của Bé";
+      } else if (tabName === "lunar_conv") {
+        window.history.pushState({}, "", "/doi-am-duong-lich");
+        document.title = "Đổi Lịch Âm Dương 2026 - Tra Cứu Ngày Âm, Ngày Dương Chính Xác";
+      } else if (tabName === "couple") {
+        window.history.pushState({}, "", "/xem-tuoi-vo-chong");
+        document.title = "Xem Tuổi Vợ Chồng Hợp Nhau Không - Tính Ngay Theo Ngày Sinh 2026";
+      } else if (tabName === "dates") {
+        window.history.pushState({}, "", "/xem-ngay-tot-xau");
+        document.title = "Xem Ngày Tốt Xấu 2026 - Chọn Ngày Khai Trương, Động Thổ Hợp Tuổi";
       }
     }
   };
@@ -82,6 +96,12 @@ export default function App() {
         setActiveTab("csection");
       } else if (path.includes("cham-diem-ten")) {
         setActiveTab("check");
+      } else if (path.includes("doi-am-duong-lich")) {
+        setActiveTab("lunar_conv");
+      } else if (path.includes("xem-tuoi-vo-chong")) {
+        setActiveTab("couple");
+      } else if (path.includes("xem-ngay-tot-xau")) {
+        setActiveTab("dates");
       } else {
         setActiveTab("suggest");
       }
@@ -100,6 +120,22 @@ export default function App() {
   const [customNameInput, setCustomNameInput] = useState("");
   const [checkedNameResult, setCheckedNameResult] = useState(null);
   const [customHanh, setCustomHanh] = useState("");
+
+  // Trạng thái Đổi lịch âm dương
+  const [convDate, setConvDate] = useState("2026-07-04");
+  const [convType, setConvType] = useState("sol2lun");
+  const [convLunarLeap, setConvLunarLeap] = useState(false);
+  const [convResult, setConvResult] = useState(null);
+
+  // Trạng thái Xem tuổi vợ chồng
+  const [coupleResult, setCoupleResult] = useState(null);
+
+  // Trạng thái Xem ngày tốt xấu
+  const [datesYear, setDatesYear] = useState("2026");
+  const [datesMonth, setDatesMonth] = useState("7");
+  const [datesWorkType, setDatesWorkType] = useState("khai_truong");
+  const [datesUserYear, setDatesUserYear] = useState("1996");
+  const [datesResult, setDatesResult] = useState(null);
 
   // Trạng thái danh sách tên yêu thích (LocalStorage)
   const [favorites, setFavorites] = useState(() => {
@@ -260,6 +296,86 @@ export default function App() {
       surname
     });
     setCheckedNameResult(scoreData);
+  };
+
+  const handleConvertDate = (e) => {
+    if (e) e.preventDefault();
+    if (!convDate) {
+      alert("Vui lòng chọn ngày cần quy đổi!");
+      return;
+    }
+    
+    try {
+      const parts = convDate.split("-");
+      const y = parseInt(parts[0]);
+      const m = parseInt(parts[1]);
+      const d = parseInt(parts[2]);
+
+      if (convType === "sol2lun") {
+        const sd = new SolarDate({ day: d, month: m, year: y });
+        const ld = sd.toLunarDate();
+        
+        const dayCanChi = ld.getDayName();
+        const dayInfo = canChiNapAmList.find(item => item.canChi === dayCanChi);
+        
+        setConvResult({
+          type: "sol2lun",
+          sourceStr: `${d}/${m}/${y} (Dương lịch)`,
+          targetStr: `${ld.day}/${ld.month}/${ld.year} ${ld.isLeap ? "(Nhuận)" : ""} (Âm lịch)`,
+          canChiStr: `Ngày ${ld.getDayName()} • Tháng ${ld.getMonthName()} • Năm ${ld.getYearName()}`,
+          napAm: dayInfo ? dayInfo.napAm : "Chưa rõ",
+          hanh: dayInfo ? dayInfo.hanh : "Chưa rõ",
+          luckyHours: ld.getLuckyHours().map(h => `${h.name} (${h.time[0]}h-${h.time[1]}h)`).join(", ")
+        });
+      } else {
+        const ld = new LunarDate({ day: d, month: m, year: y, isLeap: convLunarLeap });
+        const sd = ld.toSolarDate();
+        
+        const dayCanChi = ld.getDayName();
+        const dayInfo = canChiNapAmList.find(item => item.canChi === dayCanChi);
+
+        setConvResult({
+          type: "lun2sol",
+          sourceStr: `${d}/${m}/${y} ${convLunarLeap ? "(Nhuận)" : ""} (Âm lịch)`,
+          targetStr: `${sd.day}/${sd.month}/${sd.year} (Dương lịch)`,
+          canChiStr: `Ngày ${ld.getDayName()} • Tháng ${ld.getMonthName()} • Năm ${ld.getYearName()}`,
+          napAm: dayInfo ? dayInfo.napAm : "Chưa rõ",
+          hanh: dayInfo ? dayInfo.hanh : "Chưa rõ",
+          luckyHours: ld.getLuckyHours().map(h => `${h.name} (${h.time[0]}h-${h.time[1]}h)`).join(", ")
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Ngày tháng không hợp lệ hoặc vượt ngoài phạm vi tính toán.");
+    }
+  };
+
+  const handleCoupleCalculate = (e) => {
+    e.preventDefault();
+    if (!fatherYear || !motherYear) {
+      alert("Vui lòng chọn đầy đủ năm sinh của Chồng và Vợ!");
+      return;
+    }
+    const data = tinhTuoiVoChong({
+      chongYear: parseInt(fatherYear),
+      voYear: parseInt(motherYear)
+    });
+    setCoupleResult(data);
+  };
+
+  const handleDatesCalculate = (e) => {
+    e.preventDefault();
+    if (!datesUserYear || !datesYear || !datesMonth) {
+      alert("Vui lòng chọn đầy đủ năm sinh gia chủ, năm và tháng cần xem!");
+      return;
+    }
+    const data = tinhNgayTotXau({
+      userYear: parseInt(datesUserYear),
+      workType: datesWorkType,
+      year: parseInt(datesYear),
+      month: parseInt(datesMonth)
+    });
+    setDatesResult(data);
   };
 
   const handleCopy = (ten) => {
@@ -452,6 +568,48 @@ export default function App() {
             }`}
           >
             ✍️ Chấm Điểm Tên Có Sẵn
+          </a>
+          <a
+            href="/xem-tuoi-vo-chong"
+            onClick={(e) => {
+              e.preventDefault();
+              changeTab("couple");
+            }}
+            className={`pb-2.5 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer ${
+              activeTab === "couple"
+                ? "border-amber-600 text-amber-800"
+                : "border-transparent text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            👩‍❤️‍👨 Xem Tuổi Vợ Chồng
+          </a>
+          <a
+            href="/xem-ngay-tot-xau"
+            onClick={(e) => {
+              e.preventDefault();
+              changeTab("dates");
+            }}
+            className={`pb-2.5 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer ${
+              activeTab === "dates"
+                ? "border-amber-600 text-amber-800"
+                : "border-transparent text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            📅 Xem Ngày Tốt Xấu
+          </a>
+          <a
+            href="/doi-am-duong-lich"
+            onClick={(e) => {
+              e.preventDefault();
+              changeTab("lunar_conv");
+            }}
+            className={`pb-2.5 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer ${
+              activeTab === "lunar_conv"
+                ? "border-amber-600 text-amber-800"
+                : "border-transparent text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            ☯️ Đổi Lịch Âm Dương
           </a>
         </div>
 
@@ -708,6 +866,197 @@ export default function App() {
                 className="w-full sm:w-auto bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-700 hover:to-yellow-700 text-white font-bold px-8 py-3.5 rounded-xl shadow-lg active:scale-98 transition-all text-sm tracking-wide cursor-pointer"
               >
                 ✍️ Chấm điểm tên này
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Tab 6: Đổi Lịch Âm Dương */}
+        {activeTab === "lunar_conv" && (
+          <form onSubmit={handleConvertDate} className="space-y-6 animate-fade-in">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Chiều quy đổi */}
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-slate-700">
+                  Chiều quy đổi lịch
+                </label>
+                <select
+                  value={convType}
+                  onChange={(e) => setConvType(e.target.value)}
+                  className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-slate-700 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all"
+                >
+                  <option value="sol2lun">☀️ Dương lịch ➔ 🌙 Âm lịch</option>
+                  <option value="lun2sol">🌙 Âm lịch ➔ ☀️ Dương lịch</option>
+                </select>
+              </div>
+
+              {/* Ngày tháng năm cần quy đổi */}
+              <div className="space-y-2 md:col-span-2">
+                <label className="block text-sm font-semibold text-slate-700">
+                  {convType === "sol2lun" ? "Chọn Ngày Dương lịch cần đổi" : "Chọn Ngày Âm lịch cần đổi"}
+                </label>
+                <div className="flex gap-4">
+                  <input
+                    type="date"
+                    value={convDate}
+                    onChange={(e) => setConvDate(e.target.value)}
+                    className="flex-1 bg-white border border-slate-350 rounded-xl px-4 py-2.5 text-slate-700 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all"
+                  />
+                  {convType === "lun2sol" && (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="leap-month"
+                        checked={convLunarLeap}
+                        onChange={(e) => setConvLunarLeap(e.target.checked)}
+                        className="w-4 h-4 text-amber-600 border-slate-300 rounded focus:ring-amber-500"
+                      />
+                      <label htmlFor="leap-month" className="text-sm font-semibold text-slate-700 cursor-pointer">
+                        Tháng nhuận?
+                      </label>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-4 border-t border-slate-100">
+              <button
+                type="submit"
+                className="w-full sm:w-auto bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-700 hover:to-yellow-700 text-white font-bold px-8 py-3.5 rounded-xl shadow-lg active:scale-98 transition-all text-sm tracking-wide cursor-pointer"
+              >
+                ☯️ Thực hiện quy đổi
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Tab 4: Xem Tuổi Vợ Chồng */}
+        {activeTab === "couple" && (
+          <form onSubmit={handleCoupleCalculate} className="space-y-6 animate-fade-in">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Chồng DOB */}
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-slate-700">
+                  Năm sinh âm lịch của Chồng
+                </label>
+                <select
+                  value={fatherYear}
+                  onChange={(e) => setFatherYear(e.target.value)}
+                  className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-slate-700 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all"
+                >
+                  <option value="">Chọn năm sinh của Chồng</option>
+                  {parentYears.map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Vợ DOB */}
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-slate-700">
+                  Năm sinh âm lịch của Vợ
+                </label>
+                <select
+                  value={motherYear}
+                  onChange={(e) => setMotherYear(e.target.value)}
+                  className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-slate-700 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all"
+                >
+                  <option value="">Chọn năm sinh của Vợ</option>
+                  {parentYears.map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-4 border-t border-slate-100">
+              <button
+                type="submit"
+                className="w-full sm:w-auto bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-700 hover:to-yellow-700 text-white font-bold px-8 py-3.5 rounded-xl shadow-lg active:scale-98 transition-all text-sm tracking-wide cursor-pointer"
+              >
+                👩‍❤️‍👨 Xem mức độ hòa hợp
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Tab 5: Xem Ngày Tốt Xấu */}
+        {activeTab === "dates" && (
+          <form onSubmit={handleDatesCalculate} className="space-y-6 animate-fade-in">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              {/* Năm sinh gia chủ */}
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-slate-700">
+                  Năm sinh của Bạn
+                </label>
+                <select
+                  value={datesUserYear}
+                  onChange={(e) => setDatesUserYear(e.target.value)}
+                  className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-slate-700 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all"
+                >
+                  {parentYears.map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Loại công việc */}
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-slate-700">
+                  Công việc muốn xem
+                </label>
+                <select
+                  value={datesWorkType}
+                  onChange={(e) => setDatesWorkType(e.target.value)}
+                  className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-slate-700 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all"
+                >
+                  <option value="khai_truong">🚀 Khai trương cửa hàng</option>
+                  <option value="dong_tho">🏗️ Động thổ xây dựng</option>
+                  <option value="nhap_trach">🏡 Nhập trạch về nhà mới</option>
+                  <option value="xuat_hanh">🚗 Xuất hành đi xa</option>
+                  <option value="mua_xe_ky_hop_dong">✍️ Ký hợp đồng / Mua xe</option>
+                </select>
+              </div>
+
+              {/* Xem trong tháng */}
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-slate-700">
+                  Xem trong Tháng (Dương lịch)
+                </label>
+                <select
+                  value={datesMonth}
+                  onChange={(e) => setDatesMonth(e.target.value)}
+                  className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-slate-700 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all"
+                >
+                  {months.map((m) => (
+                    <option key={m} value={m}>Tháng {m}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Xem trong năm */}
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-slate-700">
+                  Xem trong Năm
+                </label>
+                <select
+                  value={datesYear}
+                  onChange={(e) => setDatesYear(e.target.value)}
+                  className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-slate-700 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all"
+                >
+                  <option value="2026">2026</option>
+                  <option value="2027">2027</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-4 border-t border-slate-100">
+              <button
+                type="submit"
+                className="w-full sm:w-auto bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-700 hover:to-yellow-700 text-white font-bold px-8 py-3.5 rounded-xl shadow-lg active:scale-98 transition-all text-sm tracking-wide cursor-pointer"
+              >
+                📅 Tìm ngày đẹp hợp tuổi
               </button>
             </div>
           </form>
@@ -1295,6 +1644,210 @@ export default function App() {
                   <p key={pIdx} className="text-xs md:text-sm text-slate-600 leading-relaxed bg-white border border-slate-200 p-3.5 rounded-xl" dangerouslySetInnerHTML={{ __html: para }} />
                 ))}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab 4 Results: Xem Tuổi Vợ Chồng */}
+      {activeTab === "couple" && coupleResult && (
+        <div className="space-y-6 animate-fade-in mt-8">
+          <div className="glass rounded-3xl p-6 border-2 border-amber-300 shadow-xl bg-amber-50/5 text-center">
+            
+            <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center justify-center gap-2">
+              👩‍❤️‍👨 Luận Giải Độ Hòa Hợp Tuổi Vợ Chồng
+            </h3>
+
+            {/* General Score */}
+            <div className="inline-block bg-white border border-slate-200 px-8 py-4 rounded-2xl shadow-sm mb-6">
+              <span className="text-xs text-slate-400 block uppercase font-bold tracking-wider mb-1">Điểm hòa hợp</span>
+              <span className="text-4xl font-black text-amber-700">{coupleResult.diem} / 10đ</span>
+              <span className={`block text-xs font-bold mt-1.5 px-2.5 py-0.5 rounded-full ${
+                coupleResult.diem >= 8.5
+                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                  : coupleResult.diem >= 6.0
+                  ? "bg-blue-50 text-blue-700 border border-blue-200"
+                  : coupleResult.diem >= 4.0
+                  ? "bg-amber-50 text-amber-800 border border-amber-200"
+                  : "bg-rose-50 text-rose-700 border border-rose-200"
+              } border`}>
+                Xếp loại: {coupleResult.xepLoai}
+              </span>
+            </div>
+
+            {/* Husband and Wife Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto mb-6">
+              {/* Husband Info */}
+              <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm text-left">
+                <span className="text-[10px] text-blue-700 bg-blue-50 px-2 py-0.5 rounded font-bold uppercase tracking-wider inline-block mb-2">
+                  👦 Người Chồng ({coupleResult.chong.year})
+                </span>
+                <div className="text-2xl font-extrabold text-slate-800 mb-1">
+                  Tuổi {coupleResult.chong.canChi}
+                </div>
+                <div className="text-xs font-bold text-slate-550 flex items-center gap-1.5 mt-1">
+                  <span>Mệnh: {coupleResult.chong.napAm}</span>
+                  <span className="text-[10px] text-slate-355">•</span>
+                  <span className="bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded text-slate-600 font-bold text-[10px]">Hành {coupleResult.chong.hanh}</span>
+                </div>
+              </div>
+
+              {/* Wife Info */}
+              <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm text-left">
+                <span className="text-[10px] text-rose-700 bg-rose-50 px-2 py-0.5 rounded font-bold uppercase tracking-wider inline-block mb-2">
+                  👧 Người Vợ ({coupleResult.vo.year})
+                </span>
+                <div className="text-2xl font-extrabold text-slate-800 mb-1">
+                  Tuổi {coupleResult.vo.canChi}
+                </div>
+                <div className="text-xs font-bold text-slate-550 flex items-center gap-1.5 mt-1">
+                  <span>Mệnh: {coupleResult.vo.napAm}</span>
+                  <span className="text-[10px] text-slate-355">•</span>
+                  <span className="bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded text-slate-600 font-bold text-[10px]">Hành {coupleResult.vo.hanh}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Explanations list */}
+            <div className="space-y-3 mt-6 pt-6 border-t border-slate-200 text-left max-w-2xl mx-auto">
+              <h4 className="font-bold text-slate-800 text-sm mb-3">
+                📋 Phân Tích Cát Hung Chi Tiết:
+              </h4>
+              <div className="space-y-2">
+                {coupleResult.details.map((detail, idx) => (
+                  <div key={idx} className="text-xs md:text-sm text-slate-650 bg-white border border-slate-200 p-3.5 rounded-xl flex items-start gap-2">
+                    <span className="text-amber-600 mt-0.5">✔</span>
+                    <span>{detail}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Advice Box */}
+            <div className="bg-amber-50/40 border border-amber-200/50 rounded-2xl p-4 text-left max-w-2xl mx-auto mt-6">
+              <span className="font-extrabold text-amber-800 text-[10px] uppercase block tracking-wider mb-1">
+                💡 Lời khuyên hòa hợp gia đạo:
+              </span>
+              <p className="text-xs md:text-sm text-slate-600 leading-relaxed">
+                {coupleResult.loiKhuyen}
+              </p>
+            </div>
+
+            {/* Remedy/Remediation Box */}
+            {coupleResult.hoaGiai && (
+              <div className="bg-emerald-50/40 border border-emerald-250/50 rounded-2xl p-4 text-left max-w-2xl mx-auto mt-4">
+                <span className="font-extrabold text-emerald-800 text-[10px] uppercase block tracking-wider mb-1">
+                  🛠️ Gợi ý giải pháp hóa giải xung khắc:
+                </span>
+                <p className="text-xs md:text-sm text-slate-600 leading-relaxed">
+                  {coupleResult.hoaGiai}
+                </p>
+              </div>
+            )}
+
+          </div>
+        </div>
+      )}
+
+      {/* Tab 5 Results: Xem Ngày Tốt Xấu */}
+      {activeTab === "dates" && datesResult && (
+        <div className="space-y-6 animate-fade-in mt-8">
+          <div className="glass rounded-3xl p-6 border border-slate-200/80 shadow-lg text-center">
+            
+            <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center justify-center gap-2">
+              📅 Danh Sách 10 Ngày Đẹp Nhất Trong Tháng
+            </h3>
+
+            {datesResult.length === 0 ? (
+              <p className="text-slate-500 text-sm py-8">
+                Không tìm thấy ngày nào phù hợp trong tháng này. Hãy thử chọn một khoảng thời gian khác!
+              </p>
+            ) : (
+              <div className="space-y-4 max-w-3xl mx-auto">
+                {datesResult.map((dayItem, idx) => (
+                  <div
+                    key={idx}
+                    className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm text-left flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-amber-400 hover:shadow transition-all"
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base font-extrabold text-slate-800">
+                          📅 Ngày {dayItem.formattedDate}
+                        </span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                          dayItem.isHoangDao
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            : "bg-slate-50 text-slate-500 border-slate-200"
+                        }`}>
+                          {dayItem.isHoangDao ? "🌟 Hoàng Đạo" : "Hắc Đạo / Bình thường"}
+                        </span>
+                      </div>
+                      <div className="text-xs text-slate-500">
+                        Âm lịch: {dayItem.lunarDateStr} (năm {dayItem.lunarYearName}) • Ngày {dayItem.dayCanChi}
+                      </div>
+                      <div className="text-xs text-slate-450 italic pt-1">
+                        Mệnh ngày: {dayItem.napAm} (Hành {dayItem.hanh})
+                      </div>
+                      <div className="text-xs text-emerald-800 bg-emerald-50/50 border border-emerald-100 rounded-lg p-2.5 mt-2 leading-relaxed max-w-xl">
+                        <strong>🕒 Giờ Hoàng Đạo đẹp:</strong> {dayItem.luckyHours || "Chưa xác định"}
+                      </div>
+                    </div>
+
+                    <div className="flex sm:flex-col items-center justify-between sm:justify-center w-full sm:w-auto bg-amber-50 border border-amber-200 px-4 py-2.5 rounded-xl self-stretch sm:self-auto min-w-[100px]">
+                      <span className="text-[10px] text-slate-400 block font-bold uppercase">Điểm Cát</span>
+                      <span className="text-amber-800 font-extrabold text-xl">{dayItem.diem}đ</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tab 6 Results: Đổi Lịch Âm Dương */}
+      {activeTab === "lunar_conv" && convResult && (
+        <div className="space-y-6 animate-fade-in mt-8">
+          <div className="glass rounded-3xl p-6 border border-slate-200/80 shadow-lg bg-gradient-to-br from-amber-500/5 to-transparent">
+            <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+              🔮 Kết Quả Chuyển Đổi Lịch
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Box 1: Quy đổi ngày */}
+              <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm space-y-3 text-left">
+                <div>
+                  <span className="text-xs text-slate-400 block uppercase font-bold tracking-wider mb-1">Ngày ban đầu</span>
+                  <span className="text-lg font-extrabold text-slate-800">{convResult.sourceStr}</span>
+                </div>
+                <div className="pt-3 border-t border-slate-100">
+                  <span className="text-xs text-slate-400 block uppercase font-bold tracking-wider mb-1">Kết quả quy đổi</span>
+                  <span className="text-xl font-black text-amber-800">{convResult.targetStr}</span>
+                </div>
+              </div>
+
+              {/* Box 2: Can chi & Nạp Âm */}
+              <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm space-y-3 text-left flex flex-col justify-between">
+                <div>
+                  <span className="text-xs text-slate-400 block uppercase font-bold tracking-wider mb-1">Chi tiết Can Chi</span>
+                  <span className="text-sm font-bold text-slate-700 leading-relaxed block">{convResult.canChiStr}</span>
+                </div>
+                <div className="pt-3 border-t border-slate-100 flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl ${elementIcons[convResult.hanh]?.bg || "bg-slate-50"} ${elementIcons[convResult.hanh]?.border || "border-slate-200"} border`}>
+                    {elementIcons[convResult.hanh]?.char || "☯️"}
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-slate-400">Ngũ hành Nạp âm Ngày</div>
+                    <div className="text-xs font-black text-slate-700">Mệnh {convResult.napAm} (Hành {convResult.hanh})</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Giờ Hoàng Đạo */}
+            <div className="mt-6 text-xs text-emerald-800 bg-emerald-50/50 border border-emerald-100 rounded-xl p-4 leading-relaxed text-left">
+              <strong>🕒 Các khung giờ Hoàng Đạo cát lành trong ngày:</strong><br/>
+              {convResult.luckyHours || "Chưa xác định"}
             </div>
           </div>
         </div>

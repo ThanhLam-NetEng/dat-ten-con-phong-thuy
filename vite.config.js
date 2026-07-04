@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { resolve } from 'path'
 
-// Vite plugin to support clean URLs locally in dev server (e.g. /xem-ngay-sinh-mo -> /xem-ngay-sinh-mo.html)
+// Vite plugin to support clean URLs locally in dev server
 const cleanUrlsDevPlugin = () => ({
   name: 'clean-urls-dev',
   configureServer(server) {
@@ -13,6 +13,12 @@ const cleanUrlsDevPlugin = () => ({
         req.url = '/xem-ngay-sinh-mo.html';
       } else if (url === '/cham-diem-ten') {
         req.url = '/cham-diem-ten.html';
+      } else if (url === '/doi-am-duong-lich') {
+        req.url = '/doi-am-duong-lich.html';
+      } else if (url === '/xem-tuoi-vo-chong') {
+        req.url = '/xem-tuoi-vo-chong.html';
+      } else if (url === '/xem-ngay-tot-xau') {
+        req.url = '/xem-ngay-tot-xau.html';
       }
       next();
     });
@@ -31,7 +37,10 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         csection: resolve(__dirname, 'xem-ngay-sinh-mo.html'),
-        check: resolve(__dirname, 'cham-diem-ten.html')
+        check: resolve(__dirname, 'cham-diem-ten.html'),
+        lunarConv: resolve(__dirname, 'doi-am-duong-lich.html'),
+        couple: resolve(__dirname, 'xem-tuoi-vo-chong.html'),
+        dates: resolve(__dirname, 'xem-ngay-tot-xau.html')
       }
     }
   }

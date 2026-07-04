@@ -658,3 +658,284 @@ export function layDinhHuongTen(name) {
     };
   }
 }
+
+export function tinhTuoiVoChong({ chongYear, voYear }) {
+  const chongInfo = getCanChiNapAm(chongYear);
+  const voInfo = getCanChiNapAm(voYear);
+
+  if (!chongInfo || !voInfo) return null;
+
+  const chongParts = chongInfo.canChi.split(" ");
+  const chongCan = chongParts[0];
+  const chongChi = chongParts[1];
+
+  const voParts = voInfo.canChi.split(" ");
+  const voCan = voParts[0];
+  const voChi = voParts[1];
+
+  let scoreHanh = 0;
+  let detailHanh = "";
+  if (isSinh(chongInfo.hanh, voInfo.hanh)) {
+    scoreHanh = 4.0;
+    detailHanh = `Mệnh chồng tương sinh cho mệnh vợ (${chongInfo.hanh} sinh ${voInfo.hanh}) - Rất tốt (+4.0đ)`;
+  } else if (isSinh(voInfo.hanh, chongInfo.hanh)) {
+    scoreHanh = 4.0;
+    detailHanh = `Mệnh vợ tương sinh cho mệnh chồng (${voInfo.hanh} sinh ${chongInfo.hanh}) - Rất tốt (+4.0đ)`;
+  } else if (chongInfo.hanh === voInfo.hanh) {
+    scoreHanh = 2.5;
+    detailHanh = `Mệnh hai vợ chồng bình hòa (Cùng hành ${chongInfo.hanh}) - Tốt (+2.5đ)`;
+  } else if (TUONG_KHAC[chongInfo.hanh] === voInfo.hanh) {
+    scoreHanh = 1.5;
+    detailHanh = `Mệnh chồng khắc mệnh vợ (${chongInfo.hanh} khắc ${voInfo.hanh}). Theo quan niệm 'Chồng khắc vợ thì thuận' - Bình thường (+1.5đ)`;
+  } else {
+    scoreHanh = 0.5;
+    detailHanh = `Mệnh vợ khắc mệnh chồng (${voInfo.hanh} khắc ${chongInfo.hanh}). Theo quan niệm 'Vợ khắc chồng là nghịch' - Cần nhường nhịn (+0.5đ)`;
+  }
+
+  let scoreCan = 1.0;
+  let detailCan = `Thiên can ${chongCan} và ${voCan} bình hòa (+1.0đ)`;
+
+  const canHop = {
+    "Giáp": "Kỷ", "Kỷ": "Giáp",
+    "Ất": "Canh", "Canh": "Ất",
+    "Bính": "Tân", "Tân": "Bính",
+    "Đinh": "Nhâm", "Nhâm": "Đinh",
+    "Mậu": "Quý", "Quý": "Mậu"
+  };
+  const canKhac = {
+    "Giáp": ["Canh", "Mậu"], "Ất": ["Tân", "Kỷ"],
+    "Bính": ["Nhâm", "Canh"], "Đinh": ["Quý", "Tân"],
+    "Mậu": ["Giáp", "Nhâm"], "Kỷ": ["Ất", "Quý"],
+    "Canh": ["Bính", "Giáp"], "Tân": ["Đinh", "Ất"],
+    "Nhâm": ["Mậu", "Bính"], "Quý": ["Kỷ", "Đinh"]
+  };
+
+  if (canHop[chongCan] === voCan) {
+    scoreCan = 2.0;
+    detailCan = `Thiên can tương hợp (${chongCan} hợp ${voCan}) - Rất tốt (+2.0đ)`;
+  } else if (canKhac[chongCan]?.includes(voCan) || canKhac[voCan]?.includes(chongCan)) {
+    scoreCan = 0.0;
+    detailCan = `Thiên can xung khắc (${chongCan} khắc ${voCan}) - Cần thận trọng (+0đ)`;
+  }
+
+  let scoreChi = 1.0;
+  let detailChi = `Địa chi ${chongChi} và ${voChi} bình hòa (+1.0đ)`;
+
+  if (chongChi === voChi) {
+    scoreChi = 2.0;
+    detailChi = `Địa chi hai vợ chồng đồng tuổi (${chongChi}) - Bình hòa (+2.0đ)`;
+  } else {
+    const tamHop = [
+      ["Dần", "Ngọ", "Tuất"],
+      ["Hợi", "Mão", "Mùi"],
+      ["Thân", "Tý", "Thìn"],
+      ["Tỵ", "Dậu", "Sửu"]
+    ];
+    let isTamHop = false;
+    for (const group of tamHop) {
+      if (group.includes(chongChi) && group.includes(voChi)) {
+        isTamHop = true;
+        break;
+      }
+    }
+
+    const lucHop = {
+      "Tý": "Sửu", "Sửu": "Tý",
+      "Dần": "Hợi", "Hợi": "Dần",
+      "Mão": "Tuất", "Tuất": "Mão",
+      "Thìn": "Dậu", "Dậu": "Thìn",
+      "Tỵ": "Thân", "Thân": "Tỵ",
+      "Ngọ": "Mùi", "Mùi": "Ngọ"
+    };
+
+    const tuHanhXung = [
+      ["Tý", "Ngọ"], ["Mão", "Dậu"],
+      ["Dần", "Thân"], ["Tỵ", "Hợi"],
+      ["Thìn", "Tuất"], ["Sửu", "Mùi"]
+    ];
+    let isXung = false;
+    for (const pair of tuHanhXung) {
+      if (pair.includes(chongChi) && pair.includes(voChi)) {
+        isXung = true;
+        break;
+      }
+    }
+
+    const lucHai = {
+      "Tý": "Mùi", "Mùi": "Tý",
+      "Sửu": "Ngọ", "Ngọ": "Sửu",
+      "Dần": "Tỵ", "Tỵ": "Dần",
+      "Mão": "Thìn", "Thìn": "Mão",
+      "Thân": "Hợi", "Hợi": "Thân",
+      "Dậu": "Tuất", "Tuất": "Dậu"
+    };
+
+    if (isTamHop) {
+      scoreChi = 4.0;
+      detailChi = `Địa chi Tam Hợp (${chongChi} - ${voChi}) - Rất tốt (+4.0đ)`;
+    } else if (lucHop[chongChi] === voChi) {
+      scoreChi = 3.0;
+      detailChi = `Địa chi Nhị Hợp (${chongChi} hợp ${voChi}) - Tốt (+3.0đ)`;
+    } else if (isXung) {
+      scoreChi = 0.0;
+      detailChi = `Địa chi Tứ Hành Xung đối khắc (${chongChi} xung ${voChi}) - Cần đề phòng xung khẩu (+0đ)`;
+    } else if (lucHai[chongChi] === voChi) {
+      scoreChi = 0.2;
+      detailChi = `Địa chi phạm Lục Hại (${chongChi} hại ${voChi}) - Cần thận trọng (+0.2đ)`;
+    }
+  }
+
+  const totalScore = scoreHanh + scoreCan + scoreChi;
+
+  let xepLoai = "Bình thường";
+  let loiKhuyen = "Tuổi hai vợ chồng ở mức bình hòa, không quá xung cũng không quá hợp. Cuộc sống gia đạo có êm ấm, thuận lợi hay không phụ thuộc lớn vào sự nhường nhịn, biết lắng nghe và thấu hiểu lẫn nhau giữa hai người.";
+  let hoaGiai = "";
+
+  if (totalScore >= 8.5) {
+    xepLoai = "Rất Hợp";
+    loiKhuyen = "Duyên lành tiền định, gia đạo vô cùng hòa hợp cát lợi. Hai bạn có sự đồng điệu lớn cả về suy nghĩ lẫn hành động, cuộc sống sau kết hôn nhiều may mắn, tài lộc dồi dào, con cái thuận lợi.";
+  } else if (totalScore >= 6.0) {
+    xepLoai = "Hợp";
+    loiKhuyen = "Tuổi hai vợ chồng tương hợp khá tốt. Gia đình hòa thuận, công việc làm ăn dễ gặp hanh thông thuận lợi. Dù thỉnh thoảng có bất đồng nhỏ nhưng dễ dàng giải quyết nhờ sự bao dung.";
+  } else if (totalScore < 4.0) {
+    xepLoai = "Nên Cân Nhắc";
+    loiKhuyen = "Tuổi hai vợ chồng phạm nhiều xung khắc về bản mệnh hoặc địa chi. Cuộc sống hôn nhân dễ phát sinh mâu thuẫn, khắc khẩu hoặc gặp khó khăn trong công việc làm ăn. Hai bạn cần hết sức kiên nhẫn, học cách kiểm soát cái tôi.";
+    
+    const bridgeElement = {
+      "Kim-Mộc": "Thủy",
+      "Mộc-Thổ": "Hỏa",
+      "Thổ-Thủy": "Kim",
+      "Thủy-Hỏa": "Mộc",
+      "Hỏa-Kim": "Thổ"
+    };
+    
+    const pair1 = `${chongInfo.hanh}-${voInfo.hanh}`;
+    const pair2 = `${voInfo.hanh}-${chongInfo.hanh}`;
+    const bridge = bridgeElement[pair1] || bridgeElement[pair2];
+    
+    if (bridge) {
+      hoaGiai = `Hai bạn có mệnh ngũ hành xung khắc (${chongInfo.hanh} khắc ${voInfo.hanh}). Cách hóa giải tốt nhất là tạo ra cầu nối hành ${bridge} bằng cách: sinh con mang mệnh ${bridge}, hoặc chọn hướng bếp, hướng phòng ngủ tương sinh cho mệnh của cả hai.`;
+    } else {
+      hoaGiai = "Bố mẹ nên chọn sinh con vào năm có ngũ hành nạp âm tương sinh với cả hai vợ chồng để làm cầu nối hóa giải xung khắc, đồng thời thiết kế hướng nhà, hướng bếp quay về hướng tốt theo cung mệnh cát lành.";
+    }
+  }
+
+  return {
+    chong: { year: chongYear, canChi: chongInfo.canChi, napAm: chongInfo.napAm, hanh: chongInfo.hanh },
+    vo: { year: voYear, canChi: voInfo.canChi, napAm: voInfo.napAm, hanh: voInfo.hanh },
+    diem: parseFloat(totalScore.toFixed(1)),
+    xepLoai,
+    details: [detailHanh, detailCan, detailChi],
+    loiKhuyen,
+    hoaGiai
+  };
+}
+
+export function tinhNgayTotXau({ userYear, workType, year, month }) {
+  const userBranchInfo = getCanChiNapAm(userYear);
+  if (!userBranchInfo) return [];
+  const userBranchParts = userBranchInfo.canChi.split(" ");
+  const userChi = userBranchParts[1];
+  const userHanh = userBranchInfo.hanh;
+
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const results = [];
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    try {
+      const sd = new SolarDate({ day: d, month: month, year: year });
+      const ld = sd.toLunarDate();
+      
+      const dayCanChi = ld.getDayName();
+      const dayParts = dayCanChi.split(" ");
+      const dayCan = dayParts[0];
+      const dayChi = dayParts[1];
+      
+      const dayInfo = canChiNapAmList.find(item => item.canChi === dayCanChi);
+      const dayHanh = dayInfo ? dayInfo.hanh : "Chưa rõ";
+      const dayNapAm = dayInfo ? dayInfo.napAm : "Chưa rõ";
+
+      const tuHanhXung = [
+        ["Tý", "Ngọ"], ["Mão", "Dậu"],
+        ["Dần", "Thân"], ["Tỵ", "Hợi"],
+        ["Thìn", "Tuất"], ["Sửu", "Mùi"]
+      ];
+      let isXungTuoi = false;
+      for (const pair of tuHanhXung) {
+        if (pair.includes(userChi) && pair.includes(dayChi)) {
+          isXungTuoi = true;
+          break;
+        }
+      }
+      
+      if (isXungTuoi) continue;
+
+      const HOANG_DAO_MAP = {
+        1: ["Tý", "Sửu", "Tỵ", "Mùi", "Dậu", "Hợi"],
+        2: ["Dần", "Mão", "Ngọ", "Thân", "Tuất", "Hợi"],
+        3: ["Thìn", "Tỵ", "Thân", "Tuất", "Tý", "Sửu"],
+        4: ["Ngọ", "Mùi", "Tuất", "Tý", "Dần", "Mão"],
+        5: ["Thân", "Dậu", "Tý", "Dần", "Thìn", "Tỵ"],
+        6: ["Tuất", "Hợi", "Dần", "Thìn", "Ngọ", "Mùi"],
+        7: ["Tý", "Sửu", "Tỵ", "Mùi", "Dậu", "Hợi"],
+        8: ["Dần", "Mão", "Ngọ", "Thân", "Tuất", "Hợi"],
+        9: ["Thìn", "Tỵ", "Thân", "Tuất", "Tý", "Sửu"],
+        10: ["Ngọ", "Mùi", "Tuất", "Tý", "Dần", "Mão"],
+        11: ["Thân", "Dậu", "Tý", "Dần", "Thìn", "Tỵ"],
+        12: ["Tuất", "Hợi", "Dần", "Thìn", "Ngọ", "Mùi"]
+      };
+      
+      const lunarMonth = ld.month;
+      const hoangDaoList = HOANG_DAO_MAP[lunarMonth] || [];
+      const isHoangDao = hoangDaoList.includes(dayChi);
+      
+      let baseScore = isHoangDao ? 7.0 : 4.0;
+
+      let matchScore = 0;
+      if (isSinh(dayHanh, userHanh)) {
+        matchScore = 2.0;
+      } else if (isSinh(userHanh, dayHanh)) {
+        matchScore = 1.0;
+      } else if (dayHanh === userHanh) {
+        matchScore = 1.5;
+      } else if (TUONG_KHAC[dayHanh] === userHanh) {
+        matchScore = -1.0;
+      } else {
+        matchScore = 0.5;
+      }
+
+      let activityScore = 0;
+      if (workType === "dong_tho" || workType === "nhap_trach") {
+        if (dayHanh === "Thổ" || dayHanh === "Hỏa") activityScore = 1.0;
+      } else if (workType === "khai_truong" || workType === "mua_xe_ky_hop_dong") {
+        if (dayHanh === "Kim" || dayHanh === "Thủy") activityScore = 1.0;
+      } else if (workType === "xuat_hanh") {
+        if (dayHanh === "Thủy" || dayHanh === "Mộc") activityScore = 1.0;
+      }
+
+      const totalScore = baseScore + matchScore + activityScore;
+      
+      const formattedDate = `${d}/${month}/${year}`;
+      const lunarDateStr = `${ld.day}/${ld.month}/${ld.year}`;
+      const luckyHoursStr = ld.getLuckyHours().map(h => `${h.name} (${h.time[0]}h-${h.time[1]}h)`).join(", ");
+
+      results.push({
+        dateStr: `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`,
+        formattedDate,
+        lunarDateStr,
+        lunarYearName: ld.getYearName(),
+        dayCanChi,
+        napAm: dayNapAm,
+        hanh: dayHanh,
+        isHoangDao,
+        luckyHours: luckyHoursStr,
+        diem: parseFloat(totalScore.toFixed(1))
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  results.sort((a, b) => b.diem - a.diem);
+  return results.slice(0, 10);
+}
