@@ -55,6 +55,7 @@ export default function App() {
   const [csectStart, setCsectStart] = useState("2026-07-01");
   const [csectEnd, setCsectEnd] = useState("2026-07-07");
   const [csectResults, setCsectResults] = useState(null);
+  const [csectGender, setCsectGender] = useState("Nam");
 
   // Trạng thái chấm điểm tên có sẵn
   const [customNameInput, setCustomNameInput] = useState("");
@@ -226,6 +227,46 @@ export default function App() {
     navigator.clipboard.writeText(ten);
     setCopiedText(ten);
     setTimeout(() => setCopiedText(""), 2000);
+  };
+
+  const handleViewNamesForDate = (dateStr, genderVal) => {
+    const parts = dateStr.split("-");
+    const y = parts[0];
+    const m = String(parseInt(parts[1]));
+    const d = String(parseInt(parts[2]));
+
+    setBabyDay(d);
+    setBabyMonth(m);
+    setBabyYearSelect(y);
+    setGender(genderVal);
+    setActiveTab("suggest");
+
+    // Tự động chạy tính toán gợi ý tên
+    const fatherDob = getDobString(fatherDay, fatherMonth, fatherYear);
+    const motherDob = getDobString(motherDay, motherMonth, motherYear);
+    
+    const babyYear = layNamAmLich(dateStr);
+    const fatherYearVal = fatherDob ? layNamAmLich(fatherDob) : null;
+    const motherYearVal = motherDob ? layNamAmLich(motherDob) : null;
+
+    const data = layGoiYTen({
+      babyYear,
+      fatherYear: fatherYearVal,
+      motherYear: motherYearVal,
+      gender: genderVal,
+      surname
+    });
+
+    setResult(data);
+    setVisibleCount(15);
+
+    // Cuộn nhẹ xuống phần gợi ý tên
+    setTimeout(() => {
+      window.scrollTo({
+        top: document.getElementById("naming-results-section")?.offsetTop || 500,
+        behavior: "smooth"
+      });
+    }, 100);
   };
 
   return (
@@ -508,6 +549,35 @@ export default function App() {
               </div>
             </div>
 
+            {/* Chọn Giới Tính Sinh Mổ */}
+            <div className="space-y-2">
+              <span className="block text-sm font-semibold text-slate-700">Giới tính dự kiến của Bé:</span>
+              <div className="flex bg-slate-100 rounded-xl p-1 border border-slate-200 max-w-[200px]">
+                <button
+                  type="button"
+                  onClick={() => setCsectGender("Nam")}
+                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    csectGender === "Nam"
+                      ? "bg-amber-600 text-white shadow-sm"
+                      : "text-slate-500 hover:text-slate-800"
+                  }`}
+                >
+                  👦 Bé Trai
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCsectGender("Nu")}
+                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    csectGender === "Nu"
+                      ? "bg-amber-600 text-white shadow-sm"
+                      : "text-slate-500 hover:text-slate-800"
+                  }`}
+                >
+                  👧 Bé Gái
+                </button>
+              </div>
+            </div>
+
             <p className="text-xs text-slate-450 italic">
               * Ghi chú: Hệ thống sẽ phân tích độ tương hợp Ngũ hành của các ngày trong khoảng này với Bố/Mẹ để tìm ngày tốt lành nhất cho bé chào đời, đồng thời tính ra các Khung giờ Hoàng Đạo tốt nhất trong ngày.
             </p>
@@ -600,7 +670,7 @@ export default function App() {
 
       {/* Tab 1 Results: Đặt Tên Con Hợp Mệnh */}
       {activeTab === "suggest" && result && (
-        <div className="space-y-8 animate-fade-in">
+        <div id="naming-results-section" className="space-y-8 animate-fade-in">
           {/* Family Wu Xing Info Card */}
           <div className="glass rounded-3xl p-6 border border-slate-200/80 shadow-lg">
             <h3 className="text-lg font-bold text-slate-700 mb-4 flex items-center gap-2">
@@ -881,7 +951,13 @@ export default function App() {
 
                     {/* Khối hiển thị văn bản luận giải chi tiết khi bấm mở rộng */}
                     {isExpanded && item.giaiThich && (
-                      <div className="mt-3 p-3 bg-amber-50/40 rounded-xl border border-amber-200/40 text-xs text-slate-600 space-y-2 animate-fade-in text-left">
+                      <div className="mt-3 p-3 bg-amber-50/40 rounded-xl border border-amber-200/40 text-xs text-slate-600 space-y-2.5 animate-fade-in text-left">
+                        {item.dinhHuong && (
+                          <div className="pb-2 border-b border-amber-200/45">
+                            <span className="font-extrabold text-[10px] text-amber-800 uppercase block tracking-wider mb-1">🎯 Định vị cuộc đời: {item.dinhHuong.cat}</span>
+                            <p className="italic text-slate-500 text-[11px] leading-relaxed">"{item.dinhHuong.desc}"</p>
+                          </div>
+                        )}
                         {item.giaiThich.map((para, pIdx) => (
                           <p key={pIdx} dangerouslySetInnerHTML={{ __html: para }} />
                         ))}
@@ -996,9 +1072,47 @@ export default function App() {
                     )}
                   </div>
 
+                  {dayItem.nhiThapBatTu && (
+                    <div className="text-xs bg-slate-50 border border-slate-200/80 rounded-xl p-3.5 space-y-2 text-left leading-relaxed">
+                      <div>
+                        🌌 <strong>Sao chủ ngày (Nhị Thập Bát Tú):</strong> <span className={`font-bold px-2 py-0.5 rounded text-[10px] ${dayItem.nhiThapBatTu.loai === "Cát" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-rose-50 text-rose-700 border border-rose-200"}`}>SAO {dayItem.nhiThapBatTu.ten.toUpperCase()} ({dayItem.nhiThapBatTu.loai})</span>
+                      </div>
+                      <div className="text-slate-650 text-[11px]">
+                        • <strong>Cốt cách:</strong> {dayItem.nhiThapBatTu.cotCach}
+                      </div>
+                      <div className="text-slate-650 text-[11px]">
+                        • <strong>Định hướng nuôi dạy:</strong> {dayItem.nhiThapBatTu.dinhHuong}
+                      </div>
+                      {dayItem.saoCat && dayItem.saoCat.length > 0 && (
+                        <div className="text-slate-650 text-[11px] pt-1.5 border-t border-slate-200/55 flex flex-wrap gap-1 items-center">
+                          <span className="font-bold text-slate-500 mr-1">🌟 Cát tinh hội tụ:</span>
+                          {dayItem.saoCat.map((star, sIdx) => (
+                            <span key={sIdx} className="bg-white border border-slate-200 px-1.5 py-0.5 rounded text-[10px] text-slate-700 font-medium">{star}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {dayItem.yinYangNote && (
+                    <div className="text-xs text-amber-800 bg-amber-50/50 border border-amber-100 rounded-xl p-3 leading-relaxed">
+                      💡 <strong>Âm Dương hợp mệnh:</strong> {dayItem.yinYangNote}
+                    </div>
+                  )}
+
                   <div className="text-xs text-emerald-800 bg-emerald-50/50 border border-emerald-100 rounded-xl p-3 leading-relaxed">
                     <strong>🕒 Giờ Hoàng Đạo đẹp nhất trong ngày:</strong><br/>
                     {dayItem.luckyHours || "Chưa xác định"}
+                  </div>
+
+                  <div className="flex justify-end pt-2 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => handleViewNamesForDate(dayItem.dateStr, csectGender)}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-4 py-2 rounded-xl transition-all cursor-pointer shadow-sm active:scale-98"
+                    >
+                      🔮 Xem gợi ý tên cho ngày này
+                    </button>
                   </div>
                 </div>
               ))}
@@ -1045,6 +1159,18 @@ export default function App() {
               <span className="text-slate-400 font-bold">=</span>
               <span className="bg-amber-100 border border-amber-250 px-2 py-0.5 rounded text-amber-800 font-extrabold">{checkedNameResult.diem}đ (Tổng)</span>
             </div>
+
+            {/* Life Orientation Box */}
+            {checkedNameResult.dinhHuong && (
+              <div className="bg-amber-50/40 border border-amber-200/50 rounded-2xl p-4 text-left max-w-lg mx-auto mb-6 animate-fade-in">
+                <span className="font-extrabold text-amber-800 text-[10px] uppercase block tracking-wider mb-1">
+                  🎯 Định vị cuộc đời: {checkedNameResult.dinhHuong.cat}
+                </span>
+                <p className="text-xs text-slate-500 leading-relaxed italic">
+                  "{checkedNameResult.dinhHuong.desc}"
+                </p>
+              </div>
+            )}
 
             {/* Element Changer Buttons */}
             <div className="mb-6 max-w-md mx-auto bg-white p-4 rounded-2xl border border-slate-200">

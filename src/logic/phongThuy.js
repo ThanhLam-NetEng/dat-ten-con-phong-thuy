@@ -333,6 +333,7 @@ export function layGoiYTen({ babyYear, fatherYear, motherYear, gender, surname }
       // Tuy nhiên ta vẫn giữ lại nhưng loại trừ các tên bị khắc trực tiếp với bé để đảm bảo phong thủy tốt.
       if (evaluation.status.khacBe) continue;
 
+      const dinhHuong = layDinhHuongTen(item.ten);
       result.push({
         ten: item.ten,
         nghia: item.nghia,
@@ -341,7 +342,8 @@ export function layGoiYTen({ babyYear, fatherYear, motherYear, gender, surname }
         badges: evaluation.badges,
         status: evaluation.status,
         chiTiet: evaluation.chiTiet,
-        giaiThich: taoLoiGiaiThichChiTiet(item.ten, hanh, babyInfo, fatherInfo, motherInfo, surname)
+        giaiThich: taoLoiGiaiThichChiTiet(item.ten, hanh, babyInfo, fatherInfo, motherInfo, surname),
+        dinhHuong
       });
     }
   }
@@ -422,6 +424,25 @@ export function layGoiYNgaySinh({ startDateStr, endDateStr, fatherYear, motherYe
         
         const totalScore = scoreFather + scoreMother;
         
+        const parts = dayCanChi.split(" ");
+        const dayCan = parts[0];
+        const dayChi = parts[1];
+        
+        const saoNhiThap = laySaoNhiThapBatTu(lunarDate.jd);
+        const saoCatList = layDanhSachSaoCat(lunarDate.month, dayChi, dayCan);
+
+        const isYangCan = ["Giáp", "Bính", "Mậu", "Canh", "Nhâm"].some(c => dayCanChi.startsWith(c));
+        const isYangChi = ["Tý", "Dần", "Thìn", "Ngọ", "Thân", "Tuất"].some(c => dayCanChi.endsWith(c));
+        
+        let yinYangNote = "";
+        if (isYangCan && isYangChi) {
+          yinYangNote = "Ngày thuần Dương: Rất tốt cho bé trai, bồi đắp khí chất mạnh mẽ, quyết đoán.";
+        } else if (!isYangCan && !isYangChi) {
+          yinYangNote = "Ngày thuần Âm: Rất tốt cho bé gái, bồi đắp khí chất dịu dàng, thông minh, sâu sắc.";
+        } else {
+          yinYangNote = "Ngày Âm Dương cân bằng: Khí cát điều hòa, thích hợp cho cả bé trai và bé gái.";
+        }
+
         daysList.push({
           dateStr: `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
           formattedDate: `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`,
@@ -433,7 +454,10 @@ export function layGoiYNgaySinh({ startDateStr, endDateStr, fatherYear, motherYe
           diem: parseFloat(totalScore.toFixed(1)),
           details,
           luckyHours: lunarDate.getLuckyHours().map(h => `${h.name} (${h.time[0]}h-${h.time[1]}h)`).join(", "),
-          chiTiet: { bo: scoreFather, me: scoreMother }
+          chiTiet: { bo: scoreFather, me: scoreMother },
+          yinYangNote,
+          nhiThapBatTu: saoNhiThap,
+          saoCat: saoCatList
         });
       }
     } catch (e) {
@@ -510,6 +534,7 @@ export function tinhDiemChoTenDaChon({ name, hanh, babyYear, fatherYear, motherY
   );
 
   const giaiThich = taoLoiGiaiThichChiTiet(name, hanh, babyInfo, fatherInfo, motherInfo, surname);
+  const dinhHuong = layDinhHuongTen(name);
 
   return {
     ten: name,
@@ -518,6 +543,118 @@ export function tinhDiemChoTenDaChon({ name, hanh, babyYear, fatherYear, motherY
     badges: evaluation.badges,
     status: evaluation.status,
     chiTiet: evaluation.chiTiet,
-    giaiThich
+    giaiThich,
+    dinhHuong
   };
+}
+
+// --- DỮ LIỆU NHỊ THẬP BÁT TÚ (28 SAO) ---
+const NHI_THAP_BAT_TU = [
+  { ten: "Giác", loai: "Cát", cotCach: "Thông minh, đắc lợi, học hành thi cử đỗ đạt, cuộc sống an ổn thanh nhàn.", dinhHuong: "Nên định hướng phát triển học vấn chuyên sâu, công nghệ hoặc quản lý." },
+  { ten: "Cang", loai: "Hung", cotCach: "Tính cách kiên cường, bộc trực, hậu vận trung bình nhưng cần rèn luyện tính kiên nhẫn.", dinhHuong: "Phù hợp các ngành kỹ thuật tự động, thể thao hoặc quân đội." },
+  { ten: "Đê", loai: "Hung", cotCach: "Ý chí tự lập cao, tự mình vươn lên, cuộc đời trải qua nhiều rèn luyện mới có thành tựu.", dinhHuong: "Nên khuyến khích tự lập sớm, định hướng kinh doanh hoặc kỹ nghệ." },
+  { ten: "Phòng", loai: "Cát", cotCach: "Nhân duyên tốt lành, tài lộc dồi dào, gia đạo hòa hợp, gặp dữ hóa lành.", dinhHuong: "Phù hợp kinh tế, tài chính, quan hệ công chúng hoặc quản trị kinh doanh." },
+  { ten: "Tâm", loai: "Hung", cotCach: "Tính cách thầm trầm, tư duy sâu sắc, thích nghiên cứu và có năng khiếu nghệ thuật.", dinhHuong: "Định hướng nghiên cứu khoa học, triết học, tâm lý hoặc nghệ thuật." },
+  { ten: "Vĩ", loai: "Cát", cotCach: "Sinh lực dồi dào, mang trường khí sáng tạo mạnh mẽ, hậu vận tự mình xây dựng cơ nghiệp hưng vượng.", dinhHuong: "Nên khuyến khích bé phát huy các năng khiếu bẩm sinh như nghệ thuật, thiết kế hoặc kiến trúc." },
+  { ten: "Cơ", loai: "Cát", cotCach: "Cốt cách tự do phóng khoáng, thích trải nghiệm, dễ đạt thành tựu nơi xa xứ.", dinhHuong: "Phù hợp du lịch, ngoại giao, truyền thông hoặc thương mại quốc tế." },
+  { ten: "Đẩu", loai: "Cát", cotCach: "Học thức uyên thâm, tính tình điềm đạm, công danh hiển hách, thăng tiến thuận lợi.", dinhHuong: "Định hướng nghiên cứu, giảng dạy, luật pháp hoặc quản lý nhà nước." },
+  { ten: "Ngưu", loai: "Hung", cotCach: "Tính tình siêng năng, chịu khó, có chí tiến thủ cao, tiền vận vất vả hậu vận an nhàn.", dinhHuong: "Thích hợp với nông nghiệp công nghệ cao, quản lý sản xuất hoặc tài chính." },
+  { ten: "Nữ", loai: "Hung", cotCach: "Tự chủ, tháo vát, có khả năng quản lý gia đình và xã hội tốt.", dinhHuong: "Phù hợp ngành dịch vụ, y tế, giáo dục hoặc tổ chức sự kiện." },
+  { ten: "Hư", loai: "Hung", cotCach: "Tư duy độc lập, cá tính mạnh, cần rèn luyện đức tính kiên nhẫn để tránh thăng trầm.", dinhHuong: "Nên hướng vào ngành công nghệ thông tin, phân tích dữ liệu hoặc sáng tạo tự do." },
+  { ten: "Nguy", loai: "Hung", cotCach: "Cẩn thận, tỉ mỉ, thích an toàn, cuộc sống bình ổn nếu biết bằng lòng.", dinhHuong: "Phù hợp kế toán, kiểm toán, hành chính văn phòng hoặc nghiên cứu tài liệu." },
+  { ten: "Thất", loai: "Cát", cotCach: "Trí tuệ sắc sảo, dũng cảm, mưu trí, dễ đạt được thành công lớn trong sự nghiệp.", dinhHuong: "Định hướng kinh doanh quy mô lớn, đầu tư mạo hiểm hoặc lãnh đạo." },
+  { ten: "Bích", loai: "Cát", cotCach: "Khoan dung, hiếu nghĩa, học vấn uyên thâm, được quý nhân phù trợ trọn đời.", dinhHuong: "Phù hợp văn học, báo chí, luật sư hoặc công tác xã hội." },
+  { ten: "Khuê", loai: "Hung", cotCach: "Tâm hồn lãng mạn, nhạy cảm, có khiếu văn chương nghệ thuật nổi trội.", dinhHuong: "Nên định hướng phát triển hội họa, âm nhạc, viết lách hoặc thời trang." },
+  { ten: "Lâu", loai: "Cát", cotCach: "Hoạt bát, nhanh nhạy, có năng khiếu thương mại và quản lý tài chính xuất sắc.", dinhHuong: "Phù hợp kinh doanh, môi giới tài chính, logistics hoặc dịch vụ." },
+  { ten: "Vị", loai: "Cát", cotCach: "Cốt cách phú quý, sung túc, có lộc ăn uống và quản lý gia sản tốt.", dinhHuong: "Phù hợp ẩm thực, bất động sản, tài chính gia đình hoặc quản lý khách sạn." },
+  { ten: "Mão", loai: "Hung", cotCach: "Kiên nghị, trung thực, thẳng thắn, cần chú ý lời ăn tiếng nói để tránh thị phi.", dinhHuong: "Phù hợp kỹ thuật, chế tạo, nghiên cứu thực địa hoặc y khoa." },
+  { ten: "Tất", loai: "Cát", cotCach: "Hiền hậu, nho nhã, có cuộc sống yên bình, hạnh phúc bên gia đình.", dinhHuong: "Định hướng các ngành sư phạm, chăm sóc khách hàng, y tế hoặc nhân sự." },
+  { ten: "Chủy", loai: "Hung", cotCach: "Tư duy phản biện sắc bén, quyết đoán, dễ đạt vị trí cao trong tổ chức.", dinhHuong: "Phù hợp tư vấn chiến lược, biện hộ pháp lý hoặc quản lý rủi ro." },
+  { ten: "Sâm", loai: "Cát", cotCach: "Khí chất tôn quý, tài hoa vượt trội, dễ trở thành nhân vật trung tâm thu hút đám đông.", dinhHuong: "Định hướng biểu diễn, nghệ thuật công chúng, PR hoặc quản trị cấp cao." },
+  { ten: "Tỉnh", loai: "Cát", cotCach: "Học tập nhanh, trí nhớ tốt, cuộc sống giàu tình cảm và ấm cúng.", dinhHuong: "Thích hợp giáo dục, tâm lý học, dịch thuật hoặc nghiên cứu văn hóa." },
+  { ten: "Quỷ", loai: "Hung", cotCach: "Linh cảm nhạy bén, thích khám phá tâm linh hoặc những điều bí ẩn.", dinhHuong: "Định hướng tâm lý học hành vi, thám tử, lịch sử hoặc khảo cổ." },
+  { ten: "Liễu", loai: "Hung", cotCach: "Khéo léo, dẻo dai, khả năng thích ứng với môi trường cực kỳ cao.", dinhHuong: "Phù hợp đàm phán thương mại, quan hệ quốc tế hoặc thể thao nghệ thuật." },
+  { ten: "Tinh", loai: "Hung", cotCach: "Cá tính độc đáo, yêu thích tự do, thích tự đi con đường riêng.", dinhHuong: "Định hướng start-up công nghệ, phát minh sáng chế hoặc nghệ sĩ độc lập." },
+  { ten: "Trương", loai: "Cát", cotCach: "Khéo giao tiếp, gia đạo hiển đạt, tài lộc hanh thông nhờ sự trợ giúp của bạn bè.", dinhHuong: "Phù hợp bán hàng, truyền thông, marketing hoặc dịch vụ khách hàng." },
+  { ten: "Dực", loai: "Cát", cotCach: "Tâm hồn bay bổng, yêu thiên nhiên, cuộc đời nhiều may mắn và được mọi người yêu mến.", dinhHuong: "Phù hợp sinh học, môi trường, thiết kế cảnh quan hoặc sáng tác văn học." },
+  { ten: "Chẩn", loai: "Cát", cotCach: "Điềm tĩnh, chu đáo, làm việc có kế hoạch, hậu vận thịnh vượng bền vững.", dinhHuong: "Phù hợp quy hoạch chiến lược, quản lý dự án, bác sĩ hoặc tài chính doanh nghiệp." }
+];
+
+export function laySaoNhiThapBatTu(jd) {
+  if (!jd || isNaN(jd)) return null;
+  const index = (jd + 4) % 28;
+  const adjustedIndex = index < 0 ? index + 28 : index;
+  return NHI_THAP_BAT_TU[adjustedIndex];
+}
+
+export function layDanhSachSaoCat(lunarMonth, dayChi, dayCan) {
+  const list = ["Hoàng Đạo", "Thiên Ân", "Kính Tâm"];
+  
+  const thienHyList = ["Tuất", "Hợi", "Tý", "Sửu", "Dần", "Mão", "Thìn", "Tỵ", "Ngọ", "Mùi", "Thân", "Dậu"];
+  if (dayChi === thienHyList[lunarMonth - 1]) {
+    list.push("Thiên Hỷ", "Phúc Tinh");
+  }
+  
+  const thienDucList = ["Đinh", "Thân", "Nhâm", "Tân", "Hợi", "Giáp", "Quý", "Dần", "Bính", "Ất", "Tỵ", "Canh"];
+  if (dayCan === thienDucList[lunarMonth - 1]) {
+    list.push("Thiên Đức");
+  }
+  
+  const nguyetDucList = ["Bính", "Giáp", "Nhâm", "Canh", "Bính", "Giáp", "Nhâm", "Canh", "Bính", "Giáp", "Nhâm", "Canh"];
+  if (dayCan === nguyetDucList[lunarMonth - 1]) {
+    list.push("Nguyệt Đức");
+  }
+  
+  const tamHopMap = {
+    1: ["Ngọ", "Tuất"],
+    2: ["Mão", "Mùi"],
+    3: ["Thân", "Tý"],
+    4: ["Dậu", "Sửu"],
+    5: ["Tuất", "Dần"],
+    6: ["Hợi", "Mão"],
+    7: ["Tý", "Thìn"],
+    8: ["Tỵ", "Sửu"],
+    9: ["Dần", "Ngọ"],
+    10: ["Mão", "Mùi"],
+    11: ["Thân", "Thìn"],
+    12: ["Tỵ", "Dậu"]
+  };
+  const th = tamHopMap[lunarMonth];
+  if (th && th.includes(dayChi)) {
+    list.push("Tam Hợp");
+  }
+
+  const extraStars = ["Sinh Khí", "Địa Tài", "Mẫu Thương", "Thiên Giải", "Dịch Mã", "Giải Thần", "Ngọc Đường"];
+  const seed = dayChi.charCodeAt(0) + (dayCan ? dayCan.charCodeAt(0) : 0);
+  const extra1 = extraStars[seed % extraStars.length];
+  const extra2 = extraStars[(seed + 3) % extraStars.length];
+  if (!list.includes(extra1)) list.push(extra1);
+  if (!list.includes(extra2)) list.push(extra2);
+  
+  return list;
+}
+
+export function layDinhHuongTen(name) {
+  const triTueNames = [
+    "Anh", "Triết", "Tuệ", "Minh", "Khoa", "Học", "Trí", "Văn", "Chí", "Nhân", "Nghĩa", "Lễ", "Tín", 
+    "Hiền", "Đức", "Dung", "Thư", "Nhã", "Khang", "An", "Bình", "Tĩnh", "Uyển", "Thanh", "Lâm", 
+    "Khuê", "Thảo", "Trúc", "Cầm", "Thi", "Họa", "Vân", "Kiều", "Mai", "Lan", "Cúc", "Huệ", "Quỳnh"
+  ];
+  
+  const cleanName = name.trim();
+  const words = cleanName.split(/\s+/);
+  const mainName = words[words.length - 1];
+  const formattedName = mainName.charAt(0).toUpperCase() + mainName.slice(1).toLowerCase();
+  
+  if (triTueNames.includes(formattedName)) {
+    return {
+      cat: "HỌC THỨC & TRÍ TUỆ",
+      desc: "Minh triết vững cơ sở. Tên này giúp củng cố bản nguyên Nhật chủ, gia tăng tư duy mẫn tiệp, hỗ trợ đường học vấn sâu rộng, rất thích hợp phát triển làm học giả, chuyên gia, bác sĩ, giáo sư."
+    };
+  } else {
+    return {
+      cat: "CÔNG DANH & SỰ NGHIỆP",
+      desc: "Phú quý & Hiển đạt. Tên này mang trường khí quang minh, vương giả, kích hoạt mạnh mẽ trục tài lộc, nâng đỡ đường quan lộ và định hình tư chất lãnh đạo, ngoại giao lớn."
+    };
+  }
 }
