@@ -1,5 +1,6 @@
-import { getCanChiNapAm } from "../data/canChiNapAm";
+import { getCanChiNapAm, canChiNapAmList } from "../data/canChiNapAm";
 import { danhSachTen } from "../data/danhSachTen";
+import { SolarDate } from "lunar-date-vn";
 
 // Quan hệ tương sinh: A sinh B (A -> B)
 const TUONG_SINH = {
@@ -356,5 +357,167 @@ export function layGoiYTen({ babyYear, fatherYear, motherYear, gender, surname }
     motherInfo,
     suggestions: result,
     ketLuan
+  };
+}
+
+/**
+ * Gợi ý ngày sinh mổ chủ động trong khoảng thời gian cho trước
+ */
+export function layGoiYNgaySinh({ startDateStr, endDateStr, fatherYear, motherYear }) {
+  const fatherInfo = fatherYear ? getCanChiNapAm(fatherYear) : null;
+  const motherInfo = motherYear ? getCanChiNapAm(motherYear) : null;
+
+  if (!startDateStr || !endDateStr) return [];
+
+  const start = new Date(startDateStr);
+  const end = new Date(endDateStr);
+  
+  const daysList = [];
+  let current = new Date(start);
+  let limit = 0;
+  
+  while (current <= end && limit < 25) {
+    limit++;
+    const day = current.getDate();
+    const month = current.getMonth() + 1;
+    const year = current.getFullYear();
+    
+    try {
+      const solarDate = new SolarDate({ day, month, year });
+      const lunarDate = solarDate.toLunarDate();
+      
+      const dayCanChi = lunarDate.getDayName();
+      const dayInfo = canChiNapAmList.find(item => item.canChi === dayCanChi);
+      
+      if (dayInfo) {
+        let scoreFather = 0;
+        let scoreMother = 0;
+        const details = [];
+        
+        if (fatherInfo) {
+          if (isSinh(dayInfo.hanh, fatherInfo.hanh) || isSinh(fatherInfo.hanh, dayInfo.hanh)) {
+            scoreFather = 1.5;
+            details.push(`Tương sinh với Bố (+1.5đ)`);
+          } else if (dayInfo.hanh === fatherInfo.hanh) {
+            scoreFather = 1.0;
+            details.push(`Bình hòa với Bố (+1đ)`);
+          } else if (isKhac(dayInfo.hanh, fatherInfo.hanh)) {
+            scoreFather = -2.0;
+            details.push(`Xung khắc với Bố (-2đ)`);
+          }
+        }
+        
+        if (motherInfo) {
+          if (isSinh(dayInfo.hanh, motherInfo.hanh) || isSinh(motherInfo.hanh, dayInfo.hanh)) {
+            scoreMother = 1.5;
+            details.push(`Tương sinh với Mẹ (+1.5đ)`);
+          } else if (dayInfo.hanh === motherInfo.hanh) {
+            scoreMother = 1.0;
+            details.push(`Bình hòa với Mẹ (+1đ)`);
+          } else if (isKhac(dayInfo.hanh, motherInfo.hanh)) {
+            scoreMother = -2.0;
+            details.push(`Xung khắc với Mẹ (-2đ)`);
+          }
+        }
+        
+        const totalScore = scoreFather + scoreMother;
+        
+        daysList.push({
+          dateStr: `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+          formattedDate: `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`,
+          lunarDateStr: `${lunarDate.day}/${lunarDate.month} âm lịch`,
+          lunarYearName: lunarDate.getYearName(),
+          dayCanChi: dayCanChi,
+          napAm: dayInfo.napAm,
+          hanh: dayInfo.hanh,
+          diem: parseFloat(totalScore.toFixed(1)),
+          details,
+          luckyHours: lunarDate.getLuckyHours().map(h => `${h.name} (${h.time[0]}h-${h.time[1]}h)`).join(", "),
+          chiTiet: { bo: scoreFather, me: scoreMother }
+        });
+      }
+    } catch (e) {
+      console.error("Lỗi tính toán ngày sinh:", e);
+    }
+    
+    current.setDate(current.getDate() + 1);
+  }
+  
+  // Sắp xếp ngày có điểm cao nhất lên đầu
+  daysList.sort((a, b) => b.diem - a.diem);
+  return daysList;
+}
+
+/**
+ * Tra cứu thông tin tên có sẵn để chuẩn bị chấm điểm
+ */
+export function chamDiemTenCoSan({ name, babyYear, fatherYear, motherYear }) {
+  const babyInfo = getCanChiNapAm(babyYear);
+  const fatherInfo = fatherYear ? getCanChiNapAm(fatherYear) : null;
+  const motherInfo = motherYear ? getCanChiNapAm(motherYear) : null;
+
+  if (!babyInfo || !name) return null;
+
+  const cleanName = name.trim();
+  const words = cleanName.split(/\s+/);
+  const mainName = words[words.length - 1];
+
+  // Chuẩn hóa tên chính (ví dụ: anh -> Anh)
+  const formattedMainName = mainName.charAt(0).toUpperCase() + mainName.slice(1).toLowerCase();
+
+  // Khởi tạo bảng tra cứu ngược tên -> hành & nghĩa
+  const NAME_TO_ELEMENT = {};
+  for (const element of ["Kim", "Mộc", "Thủy", "Hỏa", "Thổ"]) {
+    for (const gender of ["Nam", "Nu"]) {
+      const list = danhSachTen[element]?.[gender] || [];
+      for (const item of list) {
+        NAME_TO_ELEMENT[item.ten.toLowerCase()] = { element, nghia: item.nghia };
+      }
+    }
+  }
+
+  const lookup = NAME_TO_ELEMENT[formattedMainName.toLowerCase()];
+  let hanh = lookup?.element || null;
+  let nghia = lookup?.nghia || "Ý nghĩa tốt lành, hòa hợp phong thủy.";
+
+  return {
+    babyInfo,
+    fatherInfo,
+    motherInfo,
+    ten: cleanName,
+    tenChinh: formattedMainName,
+    hanhMacDinh: hanh,
+    nghia,
+    daTimThay: !!hanh
+  };
+}
+
+/**
+ * Tính điểm cho một tên cụ thể với hành đã xác định
+ */
+export function tinhDiemChoTenDaChon({ name, hanh, babyYear, fatherYear, motherYear, surname }) {
+  const babyInfo = getCanChiNapAm(babyYear);
+  const fatherInfo = fatherYear ? getCanChiNapAm(fatherYear) : null;
+  const motherInfo = motherYear ? getCanChiNapAm(motherYear) : null;
+
+  if (!babyInfo || !name || !hanh) return null;
+
+  const evaluation = tinhDiemTen(
+    hanh,
+    babyInfo.hanh,
+    fatherInfo?.hanh,
+    motherInfo?.hanh
+  );
+
+  const giaiThich = taoLoiGiaiThichChiTiet(name, hanh, babyInfo, fatherInfo, motherInfo, surname);
+
+  return {
+    ten: name,
+    hanh: hanh,
+    diem: evaluation.totalScore,
+    badges: evaluation.badges,
+    status: evaluation.status,
+    chiTiet: evaluation.chiTiet,
+    giaiThich
   };
 }

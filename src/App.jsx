@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { layNamAmLich } from "./logic/utils";
-import { layGoiYTen } from "./logic/phongThuy";
+import { layGoiYTen, layGoiYNgaySinh, chamDiemTenCoSan, tinhDiemChoTenDaChon } from "./logic/phongThuy";
 
 // Icon và màu sắc đại diện cho các hành ngũ hành (Light Theme tương thích)
 const elementIcons = {
@@ -47,6 +47,19 @@ export default function App() {
   // Họ và tên đệm dự kiến của bé
   const [surname, setSurname] = useState("");
   const [middleName, setMiddleName] = useState("");
+
+  // Trạng thái tab hiện tại: suggest (Đặt tên con), csection (Chọn ngày sinh mổ), check (Chấm điểm tên)
+  const [activeTab, setActiveTab] = useState("suggest");
+
+  // Trạng thái chọn ngày sinh mổ
+  const [csectStart, setCsectStart] = useState("2026-07-01");
+  const [csectEnd, setCsectEnd] = useState("2026-07-07");
+  const [csectResults, setCsectResults] = useState(null);
+
+  // Trạng thái chấm điểm tên có sẵn
+  const [customNameInput, setCustomNameInput] = useState("");
+  const [checkedNameResult, setCheckedNameResult] = useState(null);
+  const [customHanh, setCustomHanh] = useState("");
 
   // Trạng thái danh sách tên yêu thích (LocalStorage)
   const [favorites, setFavorites] = useState(() => {
@@ -129,6 +142,86 @@ export default function App() {
     setVisibleCount(15); // Reset số lượng hiển thị khi tìm mới
   };
 
+  const handleCsectCalculate = (e) => {
+    e.preventDefault();
+    if (!csectStart || !csectEnd) {
+      alert("Vui lòng chọn đầy đủ khoảng ngày dự sinh!");
+      return;
+    }
+    const fatherDob = getDobString(fatherDay, fatherMonth, fatherYear);
+    const motherDob = getDobString(motherDay, motherMonth, motherYear);
+    
+    const fatherYearVal = fatherDob ? layNamAmLich(fatherDob) : null;
+    const motherYearVal = motherDob ? layNamAmLich(motherDob) : null;
+
+    const data = layGoiYNgaySinh({
+      startDateStr: csectStart,
+      endDateStr: csectEnd,
+      fatherYear: fatherYearVal,
+      motherYear: motherYearVal
+    });
+
+    setCsectResults(data);
+  };
+
+  const handleCheckName = (e) => {
+    e.preventDefault();
+    if (!customNameInput) {
+      alert("Vui lòng nhập tên bé cần chấm điểm!");
+      return;
+    }
+    const babyDob = getDobString(babyDay, babyMonth, babyYearSelect);
+    const fatherDob = getDobString(fatherDay, fatherMonth, fatherYear);
+    const motherDob = getDobString(motherDay, motherMonth, motherYear);
+
+    const babyYear = layNamAmLich(babyDob);
+    const fatherYearVal = fatherDob ? layNamAmLich(fatherDob) : null;
+    const motherYearVal = motherDob ? layNamAmLich(motherDob) : null;
+
+    const data = chamDiemTenCoSan({
+      name: customNameInput,
+      babyYear,
+      fatherYear: fatherYearVal,
+      motherYear: motherYearVal
+    });
+
+    if (data) {
+      const initialHanh = data.hanhMacDinh || "Kim";
+      setCustomHanh(initialHanh);
+      
+      const scoreData = tinhDiemChoTenDaChon({
+        name: data.ten,
+        hanh: initialHanh,
+        babyYear,
+        fatherYear: fatherYearVal,
+        motherYear: motherYearVal,
+        surname
+      });
+      setCheckedNameResult(scoreData);
+    }
+  };
+
+  const handleRecalculateCustomName = (selectedHanh) => {
+    setCustomHanh(selectedHanh);
+    const babyDob = getDobString(babyDay, babyMonth, babyYearSelect);
+    const fatherDob = getDobString(fatherDay, fatherMonth, fatherYear);
+    const motherDob = getDobString(motherDay, motherMonth, motherYear);
+
+    const babyYear = layNamAmLich(babyDob);
+    const fatherYearVal = fatherDob ? layNamAmLich(fatherDob) : null;
+    const motherYearVal = motherDob ? layNamAmLich(motherDob) : null;
+
+    const scoreData = tinhDiemChoTenDaChon({
+      name: customNameInput,
+      hanh: selectedHanh,
+      babyYear,
+      fatherYear: fatherYearVal,
+      motherYear: motherYearVal,
+      surname
+    });
+    setCheckedNameResult(scoreData);
+  };
+
   const handleCopy = (ten) => {
     navigator.clipboard.writeText(ten);
     setCopiedText(ten);
@@ -143,214 +236,371 @@ export default function App() {
           🔮 Phong Thủy & Ngũ Hành Cổ Điển
         </div>
         <h2 className="text-3xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-700 via-amber-800 to-yellow-950 pb-2.5 pt-1 mb-3 leading-normal">
-          ĐẶT TÊN CON HỢP MỆNH 2026
+          BỘ CÔNG CỤ PHONG THỦY GIA ĐÌNH 2026
         </h2>
         <p className="text-slate-500 max-w-xl mx-auto text-sm md:text-base leading-relaxed">
-          Tra cứu nhanh mệnh Ngũ Hành Lục Thập Hoa Giáp của gia đình và tìm ra danh sách những cái tên tương sinh hoàn hảo nhất cho con cưng.
+          Đặt tên con hợp mệnh bố mẹ, phân tích tìm ngày sinh mổ đẹp và chấm điểm chi tiết những cái tên bạn đang đắn đo.
         </p>
       </div>
 
-      {/* Main Form (Glassmorphism Light) */}
+      {/* Main Container */}
       <div className="glass rounded-3xl p-6 md:p-8 shadow-xl border border-slate-200/80 mb-8">
-        <form onSubmit={handleCalculate} className="space-y-6">
-          
-          {/* Họ & Tên Đệm (Optional) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-5 border-b border-slate-200/80">
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-slate-700">
-                Họ của Bé (Dự kiến)
-              </label>
-              <input
-                type="text"
-                value={surname}
-                onChange={(e) => setSurname(e.target.value)}
-                placeholder="Ví dụ: Nguyễn, Trần, Lê, Phạm, Hoàng..."
-                className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-slate-700 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all placeholder:text-slate-400"
-              />
-              <span className="text-[11px] text-slate-400 italic block">Hệ thống sẽ tra cứu ngũ hành của Họ và chấm điểm tương hợp Họ - Tên</span>
+        
+        {/* Thông tin Bố & Mẹ - Dùng chung cho tất cả các tính năng */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 border-b border-slate-200/80 mb-6">
+          {/* Father DOB Dropdowns */}
+          <div className="space-y-2">
+            <label className="block text-sm font-bold text-slate-700">
+              Ngày sinh của Bố (Dương lịch)
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              <select
+                value={fatherDay}
+                onChange={(e) => setFatherDay(e.target.value)}
+                className="w-full bg-white border border-slate-300 rounded-xl px-2 py-2.5 text-slate-700 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all"
+              >
+                <option value="">Ngày</option>
+                {days.map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+              <select
+                value={fatherMonth}
+                onChange={(e) => setFatherMonth(e.target.value)}
+                className="w-full bg-white border border-slate-300 rounded-xl px-2 py-2.5 text-slate-700 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all"
+              >
+                <option value="">Tháng</option>
+                {months.map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+              <select
+                value={fatherYear}
+                onChange={(e) => setFatherYear(e.target.value)}
+                className="w-full bg-white border border-slate-300 rounded-xl px-2 py-2.5 text-slate-700 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all"
+              >
+                <option value="">Năm</option>
+                {parentYears.map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
             </div>
-            
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-slate-700">
-                Tên đệm dự kiến (Không bắt buộc)
-              </label>
-              <input
-                type="text"
-                value={middleName}
-                onChange={(e) => setMiddleName(e.target.value)}
-                placeholder="Ví dụ: Minh, Bảo, Hữu, Khánh..."
-                className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-slate-700 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all placeholder:text-slate-400"
-              />
-              <span className="text-[11px] text-slate-400 italic block">Để hiển thị tên đầy đủ: Họ + Tên đệm + Tên chính</span>
-            </div>
+            <span className="text-[11px] text-slate-400 italic block">Không bắt buộc, điền để tính tương hợp với Bố</span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            
-            {/* Father DOB Dropdowns */}
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-slate-700">
-                Ngày sinh Bố (Dương lịch)
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                <select
-                  value={fatherDay}
-                  onChange={(e) => setFatherDay(e.target.value)}
-                  className="w-full bg-white border border-slate-300 rounded-xl px-2 py-2.5 text-slate-700 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all"
-                >
-                  <option value="">Ngày</option>
-                  {days.map((d) => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
-                </select>
-                <select
-                  value={fatherMonth}
-                  onChange={(e) => setFatherMonth(e.target.value)}
-                  className="w-full bg-white border border-slate-300 rounded-xl px-2 py-2.5 text-slate-700 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all"
-                >
-                  <option value="">Tháng</option>
-                  {months.map((m) => (
-                    <option key={m} value={m}>{m}</option>
-                  ))}
-                </select>
-                <select
-                  value={fatherYear}
-                  onChange={(e) => setFatherYear(e.target.value)}
-                  className="w-full bg-white border border-slate-300 rounded-xl px-2 py-2.5 text-slate-700 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all"
-                >
-                  <option value="">Năm</option>
-                  {parentYears.map((y) => (
-                    <option key={y} value={y}>{y}</option>
-                  ))}
-                </select>
+          {/* Mother DOB Dropdowns */}
+          <div className="space-y-2">
+            <label className="block text-sm font-bold text-slate-700">
+              Ngày sinh của Mẹ (Dương lịch)
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              <select
+                value={motherDay}
+                onChange={(e) => setMotherDay(e.target.value)}
+                className="w-full bg-white border border-slate-300 rounded-xl px-2 py-2.5 text-slate-700 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all"
+              >
+                <option value="">Ngày</option>
+                {days.map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+              <select
+                value={motherMonth}
+                onChange={(e) => setMotherMonth(e.target.value)}
+                className="w-full bg-white border border-slate-300 rounded-xl px-2 py-2.5 text-slate-700 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all"
+              >
+                <option value="">Tháng</option>
+                {months.map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+              <select
+                value={motherYear}
+                onChange={(e) => setMotherYear(e.target.value)}
+                className="w-full bg-white border border-slate-300 rounded-xl px-2 py-2.5 text-slate-700 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all"
+              >
+                <option value="">Năm</option>
+                {parentYears.map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            </div>
+            <span className="text-[11px] text-slate-400 italic block">Không bắt buộc, điền để tính tương hợp với Mẹ</span>
+          </div>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="flex border-b border-slate-200 pb-2 mb-6 gap-2 sm:gap-6 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setActiveTab("suggest")}
+            className={`pb-2.5 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer ${
+              activeTab === "suggest"
+                ? "border-amber-600 text-amber-800"
+                : "border-transparent text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            👶 Đặt Tên Con Hợp Mệnh
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("csection")}
+            className={`pb-2.5 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer ${
+              activeTab === "csection"
+                ? "border-amber-600 text-amber-800"
+                : "border-transparent text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            📅 Chọn Ngày Sinh Mổ
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("check")}
+            className={`pb-2.5 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer ${
+              activeTab === "check"
+                ? "border-amber-600 text-amber-800"
+                : "border-transparent text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            ✍️ Chấm Điểm Tên Có Sẵn
+          </button>
+        </div>
+
+        {/* Tab 1: Đặt Tên Con Hợp Mệnh */}
+        {activeTab === "suggest" && (
+          <form onSubmit={handleCalculate} className="space-y-6 animate-fade-in">
+            {/* Họ & Tên Đệm (Optional) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-4 border-b border-slate-200/50">
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-slate-700">
+                  Họ của Bé (Dự kiến)
+                </label>
+                <input
+                  type="text"
+                  value={surname}
+                  onChange={(e) => setSurname(e.target.value)}
+                  placeholder="Ví dụ: Nguyễn, Trần, Lê, Phạm, Hoàng..."
+                  className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-slate-700 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all placeholder:text-slate-400"
+                />
+                <span className="text-[11px] text-slate-400 italic block">Hệ thống sẽ tra cứu ngũ hành của Họ và chấm tương hợp Họ - Tên</span>
               </div>
-              <span className="text-[11px] text-slate-400 italic block">Không bắt buộc</span>
+              
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-slate-700">
+                  Tên đệm dự kiến (Không bắt buộc)
+                </label>
+                <input
+                  type="text"
+                  value={middleName}
+                  onChange={(e) => setMiddleName(e.target.value)}
+                  placeholder="Ví dụ: Minh, Bảo, Hữu, Khánh..."
+                  className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-slate-700 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all placeholder:text-slate-400"
+                />
+                <span className="text-[11px] text-slate-400 italic block">Để hiển thị tên đầy đủ: Họ + Tên đệm + Tên chính</span>
+              </div>
             </div>
 
-            {/* Mother DOB Dropdowns */}
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-slate-700">
-                Ngày sinh Mẹ (Dương lịch)
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                <select
-                  value={motherDay}
-                  onChange={(e) => setMotherDay(e.target.value)}
-                  className="w-full bg-white border border-slate-300 rounded-xl px-2 py-2.5 text-slate-700 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all"
-                >
-                  <option value="">Ngày</option>
-                  {days.map((d) => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
-                </select>
-                <select
-                  value={motherMonth}
-                  onChange={(e) => setMotherMonth(e.target.value)}
-                  className="w-full bg-white border border-slate-300 rounded-xl px-2 py-2.5 text-slate-700 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all"
-                >
-                  <option value="">Tháng</option>
-                  {months.map((m) => (
-                    <option key={m} value={m}>{m}</option>
-                  ))}
-                </select>
-                <select
-                  value={motherYear}
-                  onChange={(e) => setMotherYear(e.target.value)}
-                  className="w-full bg-white border border-slate-300 rounded-xl px-2 py-2.5 text-slate-700 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all"
-                >
-                  <option value="">Năm</option>
-                  {parentYears.map((y) => (
-                    <option key={y} value={y}>{y}</option>
-                  ))}
-                </select>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Baby DOB Dropdowns */}
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-slate-700 flex items-center gap-1">
+                  <span className="text-amber-800">Ngày sinh Bé (Dự sinh)</span>
+                  <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  <select
+                    value={babyDay}
+                    onChange={(e) => setBabyDay(e.target.value)}
+                    className="w-full bg-white border border-amber-300 rounded-xl px-2 py-2.5 text-slate-700 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all"
+                  >
+                    {days.map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={babyMonth}
+                    onChange={(e) => setBabyMonth(e.target.value)}
+                    className="w-full bg-white border border-amber-300 rounded-xl px-2 py-2.5 text-slate-700 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all"
+                  >
+                    {months.map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={babyYearSelect}
+                    onChange={(e) => setBabyYearSelect(e.target.value)}
+                    className="w-full bg-white border border-amber-300 rounded-xl px-2 py-2.5 text-slate-700 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all"
+                  >
+                    {babyYears.map((y) => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                </div>
+                <span className="text-[11px] text-slate-400 italic block">Mặc định: Năm Bính Ngọ 2026</span>
               </div>
-              <span className="text-[11px] text-slate-400 italic block">Không bắt buộc</span>
+
+              {/* Gender selection */}
+              <div className="space-y-2">
+                <span className="block text-sm font-semibold text-slate-700">Giới tính của Bé:</span>
+                <div className="flex bg-slate-100 rounded-xl p-1 border border-slate-200 max-w-[200px]">
+                  <button
+                    type="button"
+                    onClick={() => setGender("Nam")}
+                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      gender === "Nam"
+                        ? "bg-amber-600 text-white shadow-sm"
+                        : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    👦 Bé Trai
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGender("Nu")}
+                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      gender === "Nu"
+                        ? "bg-amber-600 text-white shadow-sm"
+                        : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    👧 Bé Gái
+                  </button>
+                </div>
+              </div>
             </div>
 
-            {/* Baby DOB Dropdowns */}
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-slate-700 flex items-center gap-1">
-                <span className="text-amber-800">Ngày sinh Bé (Dự sinh)</span>
-                <span className="text-red-500">*</span>
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                <select
-                  value={babyDay}
-                  onChange={(e) => setBabyDay(e.target.value)}
-                  className="w-full bg-white border border-amber-300 rounded-xl px-2 py-2.5 text-slate-700 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all"
-                >
-                  {days.map((d) => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
-                </select>
-                <select
-                  value={babyMonth}
-                  onChange={(e) => setBabyMonth(e.target.value)}
-                  className="w-full bg-white border border-amber-300 rounded-xl px-2 py-2.5 text-slate-700 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all"
-                >
-                  {months.map((m) => (
-                    <option key={m} value={m}>{m}</option>
-                  ))}
-                </select>
+            <div className="flex justify-end pt-4 border-t border-slate-100">
+              <button
+                type="submit"
+                className="w-full sm:w-auto bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-700 hover:to-yellow-700 text-white font-bold px-8 py-3.5 rounded-xl shadow-lg active:scale-98 transition-all text-sm tracking-wide cursor-pointer"
+              >
+                🔮 Tìm tên hợp mệnh
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Tab 2: Chọn Ngày Sinh Mổ */}
+        {activeTab === "csection" && (
+          <form onSubmit={handleCsectCalculate} className="space-y-6 animate-fade-in">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-slate-700">
+                  Ngày bắt đầu khoảng dự sinh (Dương lịch)
+                </label>
+                <input
+                  type="date"
+                  value={csectStart}
+                  onChange={(e) => setCsectStart(e.target.value)}
+                  className="w-full bg-white border border-slate-350 rounded-xl px-4 py-2.5 text-slate-700 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-slate-700">
+                  Ngày kết thúc khoảng dự sinh (Dương lịch)
+                </label>
+                <input
+                  type="date"
+                  value={csectEnd}
+                  onChange={(e) => setCsectEnd(e.target.value)}
+                  className="w-full bg-white border border-slate-350 rounded-xl px-4 py-2.5 text-slate-700 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all"
+                />
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-450 italic">
+              * Ghi chú: Hệ thống sẽ phân tích độ tương hợp Ngũ hành của các ngày trong khoảng này với Bố/Mẹ để tìm ngày tốt lành nhất cho bé chào đời, đồng thời tính ra các Khung giờ Hoàng Đạo tốt nhất trong ngày.
+            </p>
+
+            <div className="flex justify-end pt-4 border-t border-slate-100">
+              <button
+                type="submit"
+                className="w-full sm:w-auto bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-700 hover:to-yellow-700 text-white font-bold px-8 py-3.5 rounded-xl shadow-lg active:scale-98 transition-all text-sm tracking-wide cursor-pointer"
+              >
+                📅 Phân tích ngày sinh mổ
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Tab 3: Chấm Điểm Tên Có Sẵn */}
+        {activeTab === "check" && (
+          <form onSubmit={handleCheckName} className="space-y-6 animate-fade-in">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="space-y-2 md:col-span-2">
+                <label className="block text-sm font-semibold text-slate-700">
+                  Tên chính bé dự định đặt (ví dụ: Minh Anh, Thắng, Bảo Châu...)
+                </label>
+                <input
+                  type="text"
+                  value={customNameInput}
+                  onChange={(e) => setCustomNameInput(e.target.value)}
+                  placeholder="Nhập tên chính hoặc đầy đủ Họ + Tên để chấm điểm..."
+                  className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-slate-700 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all placeholder:text-slate-400"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-slate-700">
+                  Năm sinh âm lịch của Bé
+                </label>
                 <select
                   value={babyYearSelect}
                   onChange={(e) => setBabyYearSelect(e.target.value)}
-                  className="w-full bg-white border border-amber-300 rounded-xl px-2 py-2.5 text-slate-700 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-2 py-2.5 text-slate-700 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all"
                 >
                   {babyYears.map((y) => (
                     <option key={y} value={y}>{y}</option>
                   ))}
                 </select>
               </div>
-              <span className="text-[11px] text-slate-400 italic block">Mặc định: Năm Bính Ngọ 2026</span>
             </div>
 
-          </div>
-
-          {/* Gender selection and Button */}
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-6 pt-5 border-t border-slate-200/80">
-            <div className="flex items-center gap-4">
-              <span className="text-sm font-semibold text-slate-700">Giới tính của Bé:</span>
-              <div className="flex bg-slate-200/80 rounded-xl p-1 border border-slate-300/40">
-                <button
-                  type="button"
-                  onClick={() => setGender("Nam")}
-                  className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-                    gender === "Nam"
-                      ? "bg-amber-600 text-white shadow-md"
-                      : "text-slate-600 hover:text-slate-800"
-                  }`}
-                >
-                  👦 Bé Trai
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setGender("Nu")}
-                  className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-                    gender === "Nu"
-                      ? "bg-amber-600 text-white shadow-md"
-                      : "text-slate-600 hover:text-slate-800"
-                  }`}
-                >
-                  👧 Bé Gái
-                </button>
+            {/* Họ & Tên Đệm (Optional) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-slate-700">
+                  Họ của Bé (Dự kiến)
+                </label>
+                <input
+                  type="text"
+                  value={surname}
+                  onChange={(e) => setSurname(e.target.value)}
+                  placeholder="Điền để tính tương hợp Họ tộc"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-slate-700 text-sm focus:outline-none"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-slate-700">
+                  Tên đệm dự kiến (Không bắt buộc)
+                </label>
+                <input
+                  type="text"
+                  value={middleName}
+                  onChange={(e) => setMiddleName(e.target.value)}
+                  placeholder="Ví dụ: Minh, Bảo..."
+                  className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-slate-700 text-sm focus:outline-none"
+                />
               </div>
             </div>
 
-            <button
-              type="submit"
-              className="w-full sm:w-auto bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-700 hover:to-yellow-700 text-white font-bold px-8 py-3.5 rounded-xl shadow-lg shadow-amber-600/10 active:scale-98 transition-all text-sm tracking-wide"
-            >
-              🔮 Tìm tên hợp mệnh
-            </button>
-          </div>
-        </form>
+            <div className="flex justify-end pt-4 border-t border-slate-100">
+              <button
+                type="submit"
+                className="w-full sm:w-auto bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-700 hover:to-yellow-700 text-white font-bold px-8 py-3.5 rounded-xl shadow-lg active:scale-98 transition-all text-sm tracking-wide cursor-pointer"
+              >
+                ✍️ Chấm điểm tên này
+              </button>
+            </div>
+          </form>
+        )}
       </div>
 
-      {/* Results Section */}
-      {result && (
+      {/* --- PHẦN HIỂN THỊ KẾT QUẢ --- */}
+
+      {/* Tab 1 Results: Đặt Tên Con Hợp Mệnh */}
+      {activeTab === "suggest" && result && (
         <div className="space-y-8 animate-fade-in">
-          
           {/* Family Wu Xing Info Card */}
           <div className="glass rounded-3xl p-6 border border-slate-200/80 shadow-lg">
             <h3 className="text-lg font-bold text-slate-700 mb-4 flex items-center gap-2">
@@ -358,7 +608,6 @@ export default function App() {
             </h3>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              
               {/* Bé Info */}
               <div className="glass-card rounded-2xl p-5 border border-amber-200 flex flex-col justify-between shadow-sm">
                 <div>
@@ -451,7 +700,6 @@ export default function App() {
                   Chưa điền thông tin của Mẹ.
                 </div>
               )}
-
             </div>
           </div>
 
@@ -460,7 +708,7 @@ export default function App() {
             <h3 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
               🔮 Kết Luận Phong Thủy & Lời Khuyên Đặt Tên
             </h3>
-            <div className="space-y-4 text-sm leading-relaxed text-slate-600">
+            <div className="space-y-4 text-sm leading-relaxed text-slate-650">
               <p dangerouslySetInnerHTML={{ __html: result.ketLuan.loiKhuyen.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
               
               {result.ketLuan.relations.length > 0 && (
@@ -639,7 +887,6 @@ export default function App() {
                         ))}
                       </div>
                     )}
-
                   </div>
                 );
               })}
@@ -651,13 +898,12 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setVisibleCount((prev) => prev + 12)}
-                  className="bg-white hover:bg-slate-50 text-slate-700 font-bold px-6 py-2.5 rounded-xl border border-slate-200 shadow-sm transition-all text-xs"
+                  className="bg-white hover:bg-slate-50 text-slate-700 font-bold px-6 py-2.5 rounded-xl border border-slate-200 shadow-sm transition-all text-xs cursor-pointer"
                 >
                   Xem thêm tên khác (+12 tên)
                 </button>
               </div>
             )}
-
           </div>
 
           {/* ❤️ Danh Sách Tên Đã Chọn */}
@@ -673,13 +919,13 @@ export default function App() {
                 <div className="flex gap-2 w-full sm:w-auto">
                   <button
                     onClick={handleCopyShortlist}
-                    className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs shadow-md shadow-amber-600/10 transition-all active:scale-98"
+                    className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs shadow-md shadow-amber-600/10 transition-all active:scale-98 cursor-pointer"
                   >
                     📋 Copy danh sách gửi gia đình
                   </button>
                   <button
                     onClick={handleClearFavorites}
-                    className="inline-flex items-center justify-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-500 font-semibold px-3 py-2 rounded-xl text-xs transition-all"
+                    className="inline-flex items-center justify-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-500 font-semibold px-3 py-2 rounded-xl text-xs transition-all cursor-pointer"
                   >
                     Xóa hết
                   </button>
@@ -708,10 +954,177 @@ export default function App() {
               </div>
             </div>
           )}
-
         </div>
       )}
 
+      {/* Tab 2 Results: Chọn Ngày Sinh Mổ */}
+      {activeTab === "csection" && csectResults && (
+        <div className="space-y-6 animate-fade-in">
+          <div className="glass rounded-3xl p-6 border border-slate-200/80 shadow-lg bg-gradient-to-br from-amber-500/5 to-transparent">
+            <h3 className="text-lg font-bold text-slate-800 mb-2 flex items-center gap-2">
+              🔮 Kết Quả Phân Tích Ngày Sinh Mổ Tốt Nhất
+            </h3>
+            <p className="text-xs text-slate-500 leading-relaxed mb-6">
+              Dưới đây là danh sách các ngày trong khoảng dự sinh của bạn được xếp hạng độ tương hợp phong thủy với Bố Mẹ từ cao xuống thấp (Hợp Bố Mẹ tối đa là 3.0đ).
+            </p>
+            
+            <div className="space-y-4">
+              {csectResults.map((dayItem, dIdx) => (
+                <div key={dIdx} className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm space-y-3 hover:border-amber-400/40 transition-all">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                    <div>
+                      <span className="text-base font-extrabold text-slate-800">
+                        📅 Ngày {dayItem.formattedDate} (Âm lịch: {dayItem.lunarDateStr} - năm {dayItem.lunarYearName})
+                      </span>
+                      <div className="text-xs text-slate-500 mt-1">
+                        Ngày {dayItem.dayCanChi} • Mệnh {dayItem.napAm} (Hành {dayItem.hanh})
+                      </div>
+                    </div>
+                    <div className="text-left sm:text-right bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl">
+                      <span className="text-[10px] text-slate-400 block font-bold uppercase">Độ tương hợp</span>
+                      <span className="text-amber-800 font-extrabold text-lg">{dayItem.diem}đ</span>
+                    </div>
+                  </div>
+
+                  <div className="text-xs text-slate-550 pt-2 border-t border-slate-100 flex flex-wrap gap-x-2 gap-y-1 items-center">
+                    <span className="font-bold text-slate-400 uppercase text-[10px] mr-1">Điểm chi tiết:</span>
+                    {dayItem.chiTiet.bo !== null && (
+                      <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-700 font-bold">Bố ({dayItem.chiTiet.bo >= 0 ? `+${dayItem.chiTiet.bo}` : dayItem.chiTiet.bo}đ)</span>
+                    )}
+                    {dayItem.chiTiet.me !== null && (
+                      <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-700 font-bold">Mẹ ({dayItem.chiTiet.me >= 0 ? `+${dayItem.chiTiet.me}` : dayItem.chiTiet.me}đ)</span>
+                    )}
+                  </div>
+
+                  <div className="text-xs text-emerald-800 bg-emerald-50/50 border border-emerald-100 rounded-xl p-3 leading-relaxed">
+                    <strong>🕒 Giờ Hoàng Đạo đẹp nhất trong ngày:</strong><br/>
+                    {dayItem.luckyHours || "Chưa xác định"}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab 3 Results: Chấm Điểm Tên Có Sẵn */}
+      {activeTab === "check" && checkedNameResult && (
+        <div className="space-y-6 animate-fade-in">
+          <div className="glass rounded-3xl p-6 border-2 border-amber-300 shadow-xl bg-amber-50/5 text-center">
+            <div className="inline-flex items-center gap-1 text-[11px] font-bold px-3 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 mb-3">
+              {elementIcons[checkedNameResult.hanh]?.char} Hành {checkedNameResult.hanh}
+            </div>
+            
+            <h3 className="text-3xl font-black text-slate-850 mb-2">
+              {surname.trim() && `${surname.trim().charAt(0).toUpperCase() + surname.trim().slice(1)} `}
+              {middleName.trim() && `${middleName.trim()} `}
+              {checkedNameResult.ten}
+            </h3>
+            
+            <div className="inline-block bg-white border border-slate-200 px-6 py-3 rounded-2xl shadow-sm mb-6 mt-2">
+              <span className="text-xs text-slate-400 block uppercase font-bold tracking-wider mb-1">Độ hợp phong thủy</span>
+              <span className="text-4xl font-black text-amber-700">{checkedNameResult.diem}đ</span>
+            </div>
+
+            {/* Formula */}
+            <div className="text-xs text-slate-500 mb-6 flex flex-wrap justify-center gap-x-1.5 gap-y-1 items-center bg-slate-100/50 py-2.5 px-4 rounded-xl border border-slate-200/40 max-w-lg mx-auto">
+              <span className="font-bold text-slate-450 uppercase text-[10px] mr-1">Cách tính:</span>
+              <span className="bg-white px-2 py-0.5 rounded border border-slate-250/30 text-slate-700 font-bold">Bé ({checkedNameResult.chiTiet.be}đ)</span>
+              {checkedNameResult.chiTiet.bo !== null && (
+                <>
+                  <span className="text-slate-400 font-bold">+</span>
+                  <span className="bg-white px-2 py-0.5 rounded border border-slate-250/30 text-slate-700 font-bold">Bố ({checkedNameResult.chiTiet.bo}đ)</span>
+                </>
+              )}
+              {checkedNameResult.chiTiet.me !== null && (
+                <>
+                  <span className="text-slate-400 font-bold">+</span>
+                  <span className="bg-white px-2 py-0.5 rounded border border-slate-250/30 text-slate-700 font-bold">Mẹ ({checkedNameResult.chiTiet.me}đ)</span>
+                </>
+              )}
+              <span className="text-slate-400 font-bold">=</span>
+              <span className="bg-amber-100 border border-amber-250 px-2 py-0.5 rounded text-amber-800 font-extrabold">{checkedNameResult.diem}đ (Tổng)</span>
+            </div>
+
+            {/* Element Changer Buttons */}
+            <div className="mb-6 max-w-md mx-auto bg-white p-4 rounded-2xl border border-slate-200">
+              <span className="text-[11px] text-slate-500 block font-bold uppercase tracking-wider mb-2">Hành của tên chính (Tự điều chỉnh nếu hệ thống nhận diện chưa đúng):</span>
+              <div className="flex flex-wrap justify-center gap-1.5">
+                {["Kim", "Mộc", "Thủy", "Hỏa", "Thổ"].map((h) => (
+                  <button
+                    key={h}
+                    type="button"
+                    onClick={() => handleRecalculateCustomName(h)}
+                    className={`text-[11px] px-3.5 py-1.5 rounded-lg border font-bold transition-all cursor-pointer ${
+                      customHanh === h
+                        ? "bg-amber-600 border-amber-600 text-white shadow"
+                        : "bg-white border-slate-250 text-slate-500 hover:bg-slate-50"
+                    }`}
+                  >
+                    {elementIcons[h].char} {h}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Compatibility Badges */}
+            {checkedNameResult.badges.length > 0 && (
+              <div className="flex flex-wrap justify-center gap-1.5 mb-6 max-w-xl mx-auto">
+                {checkedNameResult.badges.map((badge, bIdx) => {
+                  let badgeStyle = "bg-slate-50 border-slate-200 text-slate-500";
+                  if (badge.type === "success") badgeStyle = "bg-emerald-50 border-emerald-200 text-emerald-700";
+                  if (badge.type === "info") badgeStyle = "bg-amber-50 border-amber-200 text-amber-800";
+                  if (badge.type === "success-bo") badgeStyle = "bg-blue-50 border-blue-200 text-blue-700";
+                  if (badge.type === "success-me") badgeStyle = "bg-purple-50 border-purple-200 text-purple-700";
+                  return (
+                    <span key={bIdx} className={`text-[10px] px-2.5 py-1 rounded-md border font-bold ${badgeStyle}`}>
+                      {badge.text}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Action buttons */}
+            <div className="flex justify-center gap-3 mb-6 max-w-xs mx-auto">
+              <button
+                type="button"
+                onClick={() => toggleFavorite({ ten: customNameInput, hanh: customHanh, nghia: "Tên chấm điểm tự chọn" })}
+                className={`flex-1 inline-flex items-center justify-center gap-1 text-xs font-bold px-4 py-2.5 rounded-xl border transition-all cursor-pointer ${
+                  favorites.some(f => f.ten === customNameInput)
+                    ? "bg-rose-50 border-rose-200 text-rose-600"
+                    : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50"
+                }`}
+              >
+                {favorites.some(f => f.ten === customNameInput) ? "❤️ Đã lưu" : "🤍 Lưu tên"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const full = `${surname.trim() ? surname.trim() + " " : ""}${middleName.trim() ? middleName.trim() + " " : ""}${checkedNameResult.ten}`.replace(/\s+/g, " ").trim();
+                  navigator.clipboard.writeText(full);
+                  alert("Đã copy đầy đủ Họ Tên vào bộ nhớ tạm! ✅");
+                }}
+                className="flex-1 inline-flex items-center justify-center gap-1 text-xs font-bold px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-650 transition-all cursor-pointer"
+              >
+                📋 Copy
+              </button>
+            </div>
+
+            {/* Detailed explanations */}
+            <div className="space-y-3 mt-6 pt-6 border-t border-slate-200 text-left max-w-2xl mx-auto">
+              <h4 className="font-bold text-slate-800 text-sm mb-3">
+                📖 Luận Giải Chi Tiết Phong Thủy Cho Tên Gọi:
+              </h4>
+              <div className="space-y-3">
+                {checkedNameResult.giaiThich.map((para, pIdx) => (
+                  <p key={pIdx} className="text-xs md:text-sm text-slate-600 leading-relaxed bg-white border border-slate-200 p-3.5 rounded-xl" dangerouslySetInnerHTML={{ __html: para }} />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
